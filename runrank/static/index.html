@@ -1,0 +1,286 @@
+#셀g
+%%writefile static/index.html
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RunRank</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
+    h1 { margin: 0 0 12px; }
+    h2 { margin: 18px 0 10px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items: center; }
+    button { padding:10px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer; }
+    button:active { transform: scale(0.99); }
+    input { padding:10px 12px; border:1px solid #ddd; border-radius:10px; }
+    .card { border:1px solid #eee; border-radius:14px; padding:12px; }
+    .title { font-weight:800; }
+    .artist { color:#666; font-size: 14px; margin-top:2px; }
+    .votes { margin-top:8px; font-size: 14px; }
+    .small { color:#666; font-size: 12px; }
+    .grid { display:grid; gap:10px; }
+    .split { display:grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 820px) { .split { grid-template-columns: 1fr 1fr; } }
+
+    .pill { display:inline-block; padding:6px 10px; border:1px solid #eee; border-radius:999px; font-size:12px; color:#555; }
+    .ok { color:#0b7; }
+    .err { color:#d33; }
+  </style>
+</head>
+<body>
+  <h1>RunRank</h1>
+
+  <div class="row">
+    <input id="user" placeholder="user(필수: 중복투표 방지용)" />
+    <button id="refresh">곡 불러오기</button>
+    <button id="showRank">전체 랭킹</button>
+    <button id="showHot">🔥 핫 랭킹(24h)</button>
+    <span id="status" class="pill">status: ...</span>
+  </div>
+
+  <div class="small">
+    ✅ <b>유저별 하루 1곡 1표</b> 제한(기준: KST).<br/>
+    🔥 핫 랭킹은 “최근 투표”에 가중치(24h 기본).
+  </div>
+
+  <div class="split">
+    <div>
+      <h2>Tracks</h2>
+      <div id="tracks" class="grid"></div>
+    </div>
+
+    <div>
+      <h2>Ranking</h2>
+
+      <div class="row">
+        <input id="fromTs" placeholder="from_ts (UTC ISO 예: 2026-02-01T00:00:00)" style="flex:1; min-width: 240px;" />
+        <input id="toTs" placeholder="to_ts (UTC ISO 예: 2026-02-08T00:00:00)" style="flex:1; min-width: 240px;" />
+        <button id="rankPeriod">기간(누적) 랭킹</button>
+      </div>
+
+      <div class="row">
+        <button id="setTodayKST">KST 오늘(00~24)</button>
+        <button id="setLast7dKST">KST 최근 7일</button>
+        <button id="clearRange">기간 지우기</button>
+        <span class="small">※ KST 기준으로 잡고 → UTC ISO로 변환해 전송</span>
+      </div>
+
+      <div class="row">
+        <input id="tau" placeholder="핫 랭킹 tau_hours (기본 24)" style="width:240px;" />
+        <button id="showHotCustom">🔥 핫 랭킹(tau)</button>
+      </div>
+
+      <div id="ranking" class="grid"></div>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  return await res.json();
+}
+
+// ---------- KST helpers (KST range -> UTC ISO string) ----------
+function kstTodayStartDate() {
+  const now = new Date();
+  const utcMs = now.getTime();
+  const kstMs = utcMs + (9 * 60 * 60 * 1000);
+  const kst = new Date(kstMs);
+  const y = kst.getUTCFullYear();
+  const m = kst.getUTCMonth();
+  const d = kst.getUTCDate();
+  return new Date(Date.UTC(y, m, d, 0, 0, 0));
+}
+
+function kstDaysAgoStartDate(daysAgo) {
+  const start = kstTodayStartDate();
+  return new Date(start.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+}
+
+function kstDateToUtcIso(dtKst) {
+  const utcMs = dtKst.getTime() - (9 * 60 * 60 * 1000);
+  const utc = new Date(utcMs);
+  return utc.toISOString().slice(0,19);
+}
+
+function setRangeTodayKST() {
+  const startKst = kstTodayStartDate();
+  const endKst = new Date(startKst.getTime() + 24*60*60*1000);
+  $("fromTs").value = kstDateToUtcIso(startKst);
+  $("toTs").value   = kstDateToUtcIso(endKst);
+}
+
+function setRangeLast7dKST() {
+  const startKst = kstDaysAgoStartDate(7);
+  const endKst = new Date(kstTodayStartDate().getTime() + 24*60*60*1000);
+  $("fromTs").value = kstDateToUtcIso(startKst);
+  $("toTs").value   = kstDateToUtcIso(endKst);
+}
+
+function clearRange() {
+  $("fromTs").value = "";
+  $("toTs").value = "";
+}
+
+// ---------- UI builders ----------
+function getUserOrWarn() {
+  const user = $("user").value.trim();
+  if (!user) {
+    $("status").textContent = "status: user required";
+    $("status").className = "pill err";
+    alert("user(닉네임) 입력 필수! (유저별 하루 1곡 1표 제한용)");
+    return null;
+  }
+  return user;
+}
+
+function trackCard(t) {
+  const div = document.createElement("div");
+  div.className = "card";
+  div.innerHTML = `
+    <div class="title">${t.title}</div>
+    <div class="artist">${t.artist}</div>
+    <div class="row" style="margin-top:10px;">
+      <button>✅ 이 곡 투표 (+1)</button>
+      <span class="small">id: ${t.id}</span>
+      <span class="small" id="tv_${t.id}"></span>
+    </div>
+  `;
+
+  div.querySelector("button").onclick = async () => {
+    const user = getUserOrWarn();
+    if (!user) return;
+
+    const out = await api("/api/submit", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ track_id: t.id, user })
+    });
+
+    if (!out.ok) {
+      $("status").textContent = "status: submit error";
+      $("status").className = "pill err";
+      alert(out.error || "에러");
+      return;
+    }
+
+    const v = document.getElementById(`tv_${t.id}`);
+    if (v) v.textContent = `현재 득표: ${out.current_votes} (KST ${out.vote_day_kst})`;
+
+    $("status").textContent = "status: voted ✅";
+    $("status").className = "pill ok";
+
+    await loadRanking("");
+  };
+
+  return div;
+}
+
+function rankCard(r, idx, mode) {
+  const div = document.createElement("div");
+  div.className = "card";
+
+  if (mode === "hot") {
+    div.innerHTML = `
+      <div class="title">#${idx+1} ${r.title}</div>
+      <div class="artist">${r.artist}</div>
+      <div class="votes">hot score: <b>${r.score}</b></div>
+    `;
+  } else {
+    div.innerHTML = `
+      <div class="title">#${idx+1} ${r.title}</div>
+      <div class="artist">${r.artist}</div>
+      <div class="votes">votes: <b>${r.votes}</b></div>
+    `;
+  }
+  return div;
+}
+
+// ---------- loaders ----------
+async function loadHealth() {
+  const out = await api("/api/health");
+  if (out.ok) {
+    $("status").textContent = `status: ok (tracks ${out.tracks_count})`;
+    $("status").className = "pill ok";
+  } else {
+    $("status").textContent = "status: health error";
+    $("status").className = "pill err";
+  }
+}
+
+async function loadTracks() {
+  const tracks = await api("/api/tracks");
+  const box = $("tracks");
+  box.innerHTML = "";
+  tracks.forEach(t => box.appendChild(trackCard(t)));
+}
+
+async function loadRanking(params="") {
+  const out = await api("/api/ranking" + params);
+  if (out.ok === false) {
+    $("status").textContent = "status: ranking error";
+    $("status").className = "pill err";
+    alert(out.error || "랭킹 에러");
+    return;
+  }
+  const box = $("ranking");
+  box.innerHTML = "";
+  out.forEach((r, i) => box.appendChild(rankCard(r, i, "normal")));
+  $("status").textContent = "status: ranking updated";
+  $("status").className = "pill ok";
+}
+
+async function loadHotRanking(tauHours=24) {
+  const out = await api(`/api/hot_ranking?tau_hours=${encodeURIComponent(tauHours)}`);
+  if (out.ok === false) {
+    $("status").textContent = "status: hot ranking error";
+    $("status").className = "pill err";
+    alert(out.error || "핫랭킹 에러");
+    return;
+  }
+  const box = $("ranking");
+  box.innerHTML = "";
+  out.forEach((r, i) => box.appendChild(rankCard(r, i, "hot")));
+  $("status").textContent = `status: hot ranking (tau=${tauHours}h)`;
+  $("status").className = "pill ok";
+}
+
+// ---------- handlers ----------
+$("refresh").onclick = loadTracks;
+$("showRank").onclick = () => loadRanking("");
+$("showHot").onclick = () => loadHotRanking(24);
+
+$("showHotCustom").onclick = () => {
+  const s = $("tau").value.trim();
+  const tau = s ? Number(s) : 24;
+  if (!Number.isFinite(tau) || tau <= 0) {
+    alert("tau_hours는 0보다 큰 숫자여야 함");
+    return;
+  }
+  loadHotRanking(tau);
+};
+
+$("rankPeriod").onclick = () => {
+  const fromTs = $("fromTs").value.trim();
+  const toTs = $("toTs").value.trim();
+  const qs = new URLSearchParams();
+  if (fromTs) qs.set("from_ts", fromTs);
+  if (toTs) qs.set("to_ts", toTs);
+  const params = qs.toString() ? ("?" + qs.toString()) : "";
+  loadRanking(params);
+};
+
+$("setTodayKST").onclick = () => { setRangeTodayKST(); $("rankPeriod").click(); };
+$("setLast7dKST").onclick = () => { setRangeLast7dKST(); $("rankPeriod").click(); };
+$("clearRange").onclick = () => { clearRange(); loadRanking(""); };
+
+// init
+loadHealth();
+loadTracks();
+loadRanking("");
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+#셀e, reqirements.txt생성
+%%writefile requirements.txt
+fastapi
+uvicorn[standard]
