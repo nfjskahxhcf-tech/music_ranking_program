@@ -1,5 +1,4 @@
 #셀b, manifest.webmanifest 생성
-%%writefile static/manifest.webmanifest
 {
   "name": "RunRank",
   "short_name": "RunRank",
