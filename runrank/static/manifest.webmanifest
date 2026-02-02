@@ -1,8 +1,9 @@
 #셀b, manifest.webmanifest 생성
 
 {
-  "name": "Music Rank",
-  "short_name": "MusicRank",
+  "name": "Music Rank v2",
+"short_name": "MusicRank v2",
+
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
