@@ -3,21 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <title>Music Rank</title>
 
-  <!-- PWA -->
+  <!-- =========================
+       PWA / Manifest
+  ========================== -->
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#000000">
 
-  <!-- iOS 홈화면 -->
+  <!-- =========================
+       iOS 홈화면 (중요)
+       ※ 이게 없거나 경로 틀리면
+       검은 배경 + 흰 R 로 뜸
+  ========================== -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="MusicRank">
   <link rel="apple-touch-icon" href="/icon-192.png">
+
+  <!-- =========================
+       브라우저 / 안드로이드용 아이콘
+  ========================== -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+
 </head>
 
 <body>
   <h1>내 음악 랭킹</h1>
 </body>
 </html>
+
 
