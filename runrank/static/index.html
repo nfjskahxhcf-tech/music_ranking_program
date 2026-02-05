@@ -55,7 +55,8 @@
     .item.active{background:rgba(123,220,255,.16);border:1px solid rgba(123,220,255,.30);}
     .item.active .right{color:var(--text);}
 
-   .detail{
+   
+  .detail{
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -71,6 +72,7 @@
 }
 
 
+
     .wheelWrap{height:60%;display:flex;align-items:center;justify-content:center;padding-top:14px;}
     .wheel{width:82%;aspect-ratio:1/1;border-radius:999px;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.65),rgba(255,255,255,.22) 35%,rgba(0,0,0,.05) 66%,rgba(0,0,0,.10) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 10px 28px rgba(0,0,0,.16);position:relative;user-select:none;touch-action:manipulation;}
     .wheel .center{position:absolute;inset:30%;border-radius:999px;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.85),rgba(255,255,255,.20) 60%,rgba(0,0,0,.06) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);display:grid;place-items:center;font-weight:900;color:rgba(20,20,24,.65);cursor:pointer;}
@@ -78,7 +80,7 @@
     .wheelBtn.top{top:4%;left:32%;}
     .wheelBtn.bottom{bottom:4%;left:32%;}
     .wheelBtn.left{left:4%;top:40%;}
-    .wheelBtn.right{right:4%;top:40%;}
+    .wheelBtn.r.detail{ight{right:4%;top:40%;}
     .wheelBtn small{font-size:10px;letter-spacing:.6px;}
 
     .toast{position:absolute;left:10px;right:10px;bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);color:var(--text);font-size:12px;display:none;backdrop-filter:blur(8px);}
@@ -408,105 +410,115 @@
   }
 
   function renderRunNew(){
-    const nick = getNick();
-    const trackOptions = (state.tracks || []).map(t => {
-      const label = `${safeText(t.title)} - ${safeText(t.artist)}`;
-      return `<option value="${t.id}">${escapeHtml(label)}</option>`;
-    }).join('');
+  const nick = getNick();
+  const trackOptions = (state.tracks || []).map(t => {
+    const label = `${safeText(t.title)} - ${safeText(t.artist)}`;
+    return `<option value="${t.id}">${escapeHtml(label)}</option>`;
+  }).join('');
 
-    el.view.innerHTML = `
-      ${renderHeader('New Run', '사진 업로드')}
-      <div class="detail">
+  el.view.innerHTML = `
+    ${renderHeader('New Run', '사진 업로드')}
+    <div class="detail">
+      <div>
+        <label>user (닉네임)</label>
+        <input id="run_user" value="${escapeAttr(nick)}" placeholder="닉네임 먼저 설정 추천" />
+      </div>
+
+      <div class="grid2">
         <div>
-          <label>user (닉네임)</label>
-          <input id="run_user" value="${escapeAttr(nick)}" placeholder="닉네임 먼저 설정 추천" />
+          <label>distance_km</label>
+          <input id="run_dist" type="number" step="0.01" placeholder="예: 5" />
         </div>
-
-        <div class="grid2">
-  <div>
-    <label>distance_km</label>
-    <input id="run_dist" type="number" step="0.01" placeholder="예: 5" />
-  </div>
-  <div>
-    <label>pace (mm:ss / km)</label>
-    <input id="run_pace" placeholder="예: 5:30" />
-  </div>
-</div>
-
-
-        <div class="grid2">
-          <div>
-            <label>date_label</label>
-            <input id="run_date" placeholder="예: 2026-02-05" />
-          </div>
-          <div>
-            <label>track</label>
-            <select id="run_track">
-              <option value="">(선택 안 함)</option>
-              ${trackOptions}
-            </select>
-          </div>
-        </div>
-
         <div>
-          <label>photo</label>
-          <input id="run_photo" type="file" accept="image/*" />
-        </div>
-
-        <div class="cta">
-          <button class="btn" id="run_cancel">취소</button>
-          <button class="btn primary" id="run_submit">저장</button>
+          <label>pace (mm:ss / km)</label>
+          <input id="run_pace" placeholder="예: 5:30" />
         </div>
       </div>
-      <div class="kbd"><code>Esc</code> 취소</div>
-    `;
 
-    document.getElementById('run_cancel').addEventListener('click', () => {
-      state.page = 'runs'; render();
-    });
+      <div class="grid2">
+        <div>
+          <label>date_label</label>
+          <input id="run_date" placeholder="예: 2026-02-05" />
+        </div>
+        <div>
+          <label>track</label>
+          <select id="run_track">
+            <option value="">(선택 안 함)</option>
+            ${trackOptions}
+          </select>
+        </div>
+      </div>
 
-    document.getElementById('run_submit').addEventListener('click', async () => {
-  const user = document.getElementById('run_user').value.trim();
-  const distance_km = document.getElementById('run_dist').value.trim();
-  const paceStr = document.getElementById('run_pace').value.trim();
-  const date_label = document.getElementById('run_date').value.trim() || new Date().toISOString().slice(0,10);
-  const track_id = document.getElementById('run_track').value;
-  const photo = document.getElementById('run_photo').files?.[0] || null;
+      <div>
+        <label>photo</label>
+        <!-- ✅ iOS 터치 안정화: label로 파일 선택 열기 -->
+        <label class="btn" for="run_photo" style="display:inline-flex; width:100%; justify-content:center;">
+          사진 선택하기
+        </label>
+        <input id="run_photo" type="file" accept="image/*" style="display:none;" />
+        <div id="photo_name" style="margin-top:6px;font-size:11px;color:var(--muted);">선택된 파일 없음</div>
+      </div>
 
-  if (!user) return showToast('에러', 'user(닉네임) 필요');
+      <div class="cta">
+        <button class="btn" id="run_cancel">취소</button>
+        <button class="btn primary" id="run_submit">저장</button>
+      </div>
+    </div>
+    <div class="kbd"><code>Esc</code> 취소</div>
+  `;
 
-  const dist = Number(distance_km);
-  if (!dist || dist <= 0) return showToast('에러', 'distance_km 필요');
-
-  // pace "m:ss" -> seconds per km
-  const m = paceStr.match(/^(\d+)\s*:\s*([0-5]?\d)$/);
-  if (!m) return showToast('에러', 'pace 형식은 5:30 처럼 mm:ss');
-
-  const pace_sec = Number(m[1]) * 60 + Number(m[2]);
-  if (pace_sec <= 0) return showToast('에러', 'pace 필요');
-
-  const duration_sec = Math.round(dist * pace_sec);
-
-  const fd = new FormData();
-  fd.append('user', user);
-  fd.append('distance_km', String(dist));
-  fd.append('duration_sec', String(duration_sec));
-  fd.append('date_label', date_label);
-  if (track_id) fd.append('track_id', String(track_id));
-  if (photo) fd.append('photo', photo);
-
-  try{
-    const res = await fetch('/api/runs', { method:'POST', body: fd });
-    const data = await res.json().catch(()=> ({}));
-    if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
-    showToast('저장됨', `pace: ${data.pace}`);
+  document.getElementById('run_cancel').addEventListener('click', () => {
     state.page = 'runs';
-    await refreshRuns();
-  }catch(e){
-    showToast('실패', String(e.message || '서버 오류').slice(0,80));
-  }
-});
+    render();
+  });
 
+  const photoInput = document.getElementById('run_photo');
+  photoInput.addEventListener('change', () => {
+    const f = photoInput.files?.[0];
+    document.getElementById('photo_name').textContent = f ? `선택됨: ${f.name}` : '선택된 파일 없음';
+  });
+
+  document.getElementById('run_submit').addEventListener('click', async () => {
+    const user = document.getElementById('run_user').value.trim();
+    const distance_km_raw = document.getElementById('run_dist').value.trim();
+    const paceStr = document.getElementById('run_pace').value.trim();
+    const date_label = document.getElementById('run_date').value.trim() || new Date().toISOString().slice(0,10);
+    const track_id = document.getElementById('run_track').value;
+    const photo = document.getElementById('run_photo').files?.[0] || null;
+
+    if (!user) return showToast('에러', 'user(닉네임) 필요');
+
+    const dist = Number(distance_km_raw);
+    if (!dist || dist <= 0) return showToast('에러', 'distance_km 필요');
+
+    const m = paceStr.match(/^(\d+)\s*:\s*([0-5]?\d)$/);
+    if (!m) return showToast('에러', 'pace 형식은 5:30 처럼 mm:ss');
+
+    const pace_sec = Number(m[1]) * 60 + Number(m[2]);
+    if (pace_sec <= 0) return showToast('에러', 'pace 필요');
+
+    const duration_sec = Math.round(dist * pace_sec);
+
+    const fd = new FormData();
+    fd.append('user', user);
+    fd.append('distance_km', String(dist));
+    fd.append('duration_sec', String(duration_sec));
+    fd.append('date_label', date_label);
+    if (track_id) fd.append('track_id', String(track_id));
+    if (photo) fd.append('photo', photo);
+
+    try{
+      const res = await fetch('/api/runs', { method:'POST', body: fd });
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
+      showToast('저장됨', `pace: ${data.pace}`);
+      state.page = 'runs';
+      await refreshRuns();
+    }catch(e){
+      showToast('실패', String(e.message || '서버 오류').slice(0,80));
+    }
+  });
+}
 
   function renderSettings(){
     const nick = getNick();
