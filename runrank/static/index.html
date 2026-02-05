@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- MARK:STATIC -->
+  <!-- MARK:TEMPLATE -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>RunRank</title>
@@ -81,7 +81,7 @@
     .wheelBtn.top{top:4%;left:32%;}
     .wheelBtn.bottom{bottom:4%;left:32%;}
     .wheelBtn.left{left:4%;top:40%;}
-    .wheelBtn.r.detail{ight{right:4%;top:40%;}
+    .wheelBtn.right{right:4%;top:40%;}
     .wheelBtn small{font-size:10px;letter-spacing:.6px;}
 
     .toast{position:absolute;left:10px;right:10px;bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);color:var(--text);font-size:12px;display:none;backdrop-filter:blur(8px);}
@@ -150,6 +150,8 @@
     hot: [],
     runs: [],
     selectedTrack: null,
+    // ✅ 한 런에서 들은 곡들(체크)
+    checkedTrackIds: new Set(),
     online: navigator.onLine,
   };
 
@@ -192,6 +194,115 @@
 
   function getNick(){ return localStorage.getItem('runrank_nick') || ''; }
   function setNick(v){ localStorage.setItem('runrank_nick', v); }
+
+  // ----------------------
+  // ✅ Spotify (PKCE) - 최소 골격
+  // ----------------------
+  function getSpotifyClientId(){ return localStorage.getItem('runrank_spotify_client_id') || ''; }
+  function setSpotifyClientId(v){ localStorage.setItem('runrank_spotify_client_id', v); }
+  function getSpotifyToken(){ return localStorage.getItem('runrank_spotify_access_token') || ''; }
+  function setSpotifyToken(v){ localStorage.setItem('runrank_spotify_access_token', v); }
+
+  async function sha256(base64UrlString){
+    const enc = new TextEncoder();
+    const data = enc.encode(base64UrlString);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return new Uint8Array(hash);
+  }
+  function base64url(bytes){
+    let str = '';
+    bytes.forEach(b => str += String.fromCharCode(b));
+    return btoa(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function randString(len=64){
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    let out = '';
+    const arr = crypto.getRandomValues(new Uint8Array(len));
+    for (let i=0;i<len;i++) out += chars[arr[i] % chars.length];
+    return out;
+  }
+
+  async function spotifyLogin(){
+    const clientId = getSpotifyClientId().trim();
+    if (!clientId) return showToast('Spotify', 'Settings에 Client ID부터 넣어');
+
+    const verifier = randString(64);
+    const challenge = base64url(await sha256(verifier));
+    const stateStr = randString(16);
+    localStorage.setItem('runrank_spotify_verifier', verifier);
+    localStorage.setItem('runrank_spotify_oauth_state', stateStr);
+
+    const redirectUri = window.location.origin + '/';
+    const scope = [
+      'user-read-email',
+      'user-read-private',
+      'playlist-read-private',
+      'playlist-read-collaborative'
+    ].join(' ');
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      response_type: 'code',
+      redirect_uri: redirectUri,
+      code_challenge_method: 'S256',
+      code_challenge: challenge,
+      state: stateStr,
+      scope,
+    });
+    window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+  }
+
+  async function handleSpotifyCallback(){
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('code');
+    const stateStr = url.searchParams.get('state');
+    const err = url.searchParams.get('error');
+    if (err){
+      showToast('Spotify 실패', err);
+      url.searchParams.delete('error');
+      window.history.replaceState({}, '', url.toString());
+      return;
+    }
+    if (!code) return;
+
+    const expectedState = localStorage.getItem('runrank_spotify_oauth_state') || '';
+    const verifier = localStorage.getItem('runrank_spotify_verifier') || '';
+    const clientId = getSpotifyClientId().trim();
+    const redirectUri = window.location.origin + '/';
+
+    if (!clientId || !verifier || !expectedState || expectedState !== stateStr){
+      showToast('Spotify', 'state/verifier 불일치');
+      return;
+    }
+
+    try{
+      const body = new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: verifier,
+      });
+      const res = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok) throw new Error(data?.error_description || data?.error || String(res.status));
+      if (data?.access_token){
+        setSpotifyToken(data.access_token);
+        showToast('Spotify', '연동 완료');
+      }
+    }catch(e){
+      showToast('Spotify 실패', String(e.message || e).slice(0,80));
+    }finally{
+      // URL clean
+      url.searchParams.delete('code');
+      url.searchParams.delete('state');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }
 
   function pickCoverUrl(x){
     return x?.cover_url || x?.album_art || x?.image_url || '';
@@ -319,6 +430,7 @@
       const cover = pickCoverUrl(t);
       const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
       const artist = safeText(t.artist || t.singer || t.by || '');
+      const checked = state.checkedTrackIds.has(Number(t.id));
       return `
         <div class="item ${idx===state.listIndex?'active':''}">
           <div class="thumb">${cover ? `<img alt="" src="${cover}">` : '♪'}</div>
@@ -326,15 +438,15 @@
             <div class="name">${name}</div>
             <div class="sub">${artist || ' '}</div>
           </div>
-          <div class="right">+</div>
+          <div class="right">${checked ? '✓' : '+'}</div>
         </div>
       `;
     }).join('');
 
     el.view.innerHTML = `
-      ${renderHeader('Tracks', '센터=상세')}
+      ${renderHeader('Tracks', '▶︎/⏸=체크')}
       <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">/api/tracks 확인</div></div></div>'}</div>
-      <div class="kbd"><code>Enter</code> 상세 · <code>▶︎/⏸</code> 추천 · <code>Esc</code> 메뉴</div>
+      <div class="kbd"><code>Enter</code> 상세 · <code>▶︎/⏸</code> 체크/해제 · <code>Esc</code> 메뉴</div>
     `;
   }
 
@@ -395,9 +507,11 @@
     state.listIndex = clampIndex(state.listIndex, runs.length);
 
     const items = runs.map((r, idx) => {
-      const t = r.track;
-      const cover = pickCoverUrl(t);
-      const title = t ? `${t.title}` : '—';
+      const tracks = Array.isArray(r.tracks) ? r.tracks : [];
+      const t0 = tracks[0] || r.track;
+      const cover = pickCoverUrl(r.photo_url ? {cover_url:r.photo_url} : t0);
+      const baseTitle = t0 ? `${t0.title}` : '—';
+      const title = tracks.length > 1 ? `${baseTitle} (+${tracks.length-1})` : baseTitle;
       const sub = `${r.date_label} · ${r.distance_km}km · ${fmtDur(r.duration_sec)} · ${r.pace}`;
       return `
         <div class="item ${idx===state.listIndex?'active':''}">
@@ -420,10 +534,13 @@
 
   function renderRunNew(){
   const nick = getNick();
-  const trackOptions = (state.tracks || []).map(t => {
-    const label = `${safeText(t.title)} - ${safeText(t.artist)}`;
-    return `<option value="${t.id}">${escapeHtml(label)}</option>`;
-  }).join('');
+  const checkedIds = Array.from(state.checkedTrackIds);
+  const checkedInfos = checkedIds.map(id => {
+    const t = (state.tracks || []).find(x => Number(x.id) === Number(id));
+    const title = safeText(t?.title || `Track ${id}`);
+    const artist = safeText(t?.artist || '');
+    return `${escapeHtml(title)}${artist ? ' - ' + escapeHtml(artist) : ''}`;
+  });
 
   el.view.innerHTML = `
     ${renderHeader('New Run', '사진 업로드')}
@@ -450,11 +567,16 @@
           <input id="run_date" placeholder="예: 2026-02-05" />
         </div>
         <div>
-          <label>track</label>
-          <select id="run_track">
-            <option value="">(선택 안 함)</option>
-            ${trackOptions}
-          </select>
+          <label>tracks (체크한 곡)</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div style="flex:1; font-size:11px; color:var(--muted); line-height:1.35;">
+              ${checkedInfos.length ? `${checkedInfos.length}곡 선택됨` : 'Tracks 메뉴에서 ▶︎/⏸ 눌러 체크해줘'}
+            </div>
+            <button class="btn" id="clear_checked" style="white-space:nowrap;">초기화</button>
+          </div>
+          <div style="margin-top:6px; max-height:72px; overflow:auto; font-size:11px;">
+            ${checkedInfos.length ? checkedInfos.map(s => `<div style="padding:2px 0; opacity:.92;">• ${s}</div>`).join('') : ''}
+          </div>
         </div>
       </div>
 
@@ -482,6 +604,11 @@
   });
 
   const photoInput = document.getElementById('run_photo');
+  document.getElementById('clear_checked').addEventListener('click', () => {
+    state.checkedTrackIds.clear();
+    showToast('초기화', '선택곡 0개');
+    render();
+  });
   photoInput.addEventListener('change', () => {
     const f = photoInput.files?.[0];
     document.getElementById('photo_name').textContent = f ? `선택됨: ${f.name}` : '선택된 파일 없음';
@@ -492,7 +619,7 @@
     const distance_km_raw = document.getElementById('run_dist').value.trim();
     const paceStr = document.getElementById('run_pace').value.trim();
     const date_label = document.getElementById('run_date').value.trim() || new Date().toISOString().slice(0,10);
-    const track_id = document.getElementById('run_track').value;
+    const track_ids = Array.from(state.checkedTrackIds);
     const photo = document.getElementById('run_photo').files?.[0] || null;
 
     if (!user) return showToast('에러', 'user(닉네임) 필요');
@@ -513,35 +640,24 @@
     fd.append('distance_km', String(dist));
     fd.append('duration_sec', String(duration_sec));
     fd.append('date_label', date_label);
-    if (track_id) fd.append('track_id', String(track_id));
+    if (track_ids.length) fd.append('track_ids', JSON.stringify(track_ids));
     if (photo) fd.append('photo', photo);
 
     try{
-      const res = 
-  // --- v2: multi-track voting payload (send ALL tracks listened in this run) ---
-  // Try to collect selected/checked tracks from DOM in a flexible way.
-  const __trackIds = Array.from(
-    document.querySelectorAll(
-      // rows marked checked/selected
-      "[data-track-id].checked,[data-track-id][aria-checked='true'],[data-track-id][data-selected='1']," +
-      // checkbox inputs inside track rows
-      "[data-track-id] input[type=checkbox]:checked"
-    )
-  ).map(el => {
-    const row = el.dataset.trackId ? el : el.closest("[data-track-id]");
-    const v = row && row.dataset ? row.dataset.trackId : null;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  }).filter(n => n !== null);
-
-  // Backend accepts JSON array string or comma-separated string.
-  fd.append("track_ids", JSON.stringify(__trackIds));
-  // --- end v2 ---
-
-await fetch('/api/runs', { method:'POST', body: fd });
+      const res = await fetch('/api/runs', { method:'POST', body: fd });
       const data = await res.json().catch(()=> ({}));
       if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
-      showToast('저장됨', `pace: ${data.pace}`);
+      // ✅ 런 기록 저장 + (트랙 선택시) 자동 추천 결과 표시
+      const vote = data?.vote;
+      if (vote?.did_vote) {
+        showToast('저장+투표', `pace: ${data.pace} · ${vote.inserted}곡 투표됨`);
+      } else if (vote?.already_voted) {
+        showToast('저장됨', `pace: ${data.pace} · 오늘은 이미 투표했어`);
+      } else {
+        showToast('저장됨', `pace: ${data.pace}`);
+      }
+      // 투표가 완료됐으면 다음 런을 위해 체크 초기화
+      if (vote?.did_vote) state.checkedTrackIds.clear();
       state.page = 'runs';
       await refreshRuns();
     }catch(e){
@@ -552,6 +668,8 @@ await fetch('/api/runs', { method:'POST', body: fd });
 
   function renderSettings(){
     const nick = getNick();
+    const spClientId = getSpotifyClientId();
+    const spConnected = !!getSpotifyToken();
     el.view.innerHTML = `
       ${renderHeader('Settings', '닉네임')}
       <div class="detail">
@@ -578,6 +696,23 @@ await fetch('/api/runs', { method:'POST', body: fd });
           <button class="btn" id="clearNick">닉네임 지우기</button>
           <button class="btn" id="loadRuns">내 Runs 불러오기</button>
         </div>
+
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.10);"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <div style="font-weight:900; font-size:13px;">Spotify</div>
+          <div style="font-size:11px; color: var(--muted);">PKCE 연동</div>
+        </div>
+        <div style="margin-top:6px; font-size:11px; color: var(--muted); line-height:1.35;">
+          Spotify Developer Dashboard에서 App 만들고 Client ID를 넣어. Redirect URI는 <b style="color:var(--text)">${escapeHtml(window.location.origin + '/')}</b> 로 등록해야 함.
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+          <input id="spClientId" value="${escapeAttr(spClientId)}" placeholder="Spotify Client ID" style="flex:1;" />
+          <button class="btn primary" id="spSave">저장</button>
+        </div>
+        <div class="cta">
+          <button class="btn ${spConnected ? 'primary' : ''}" id="spConnect">${spConnected ? '연동됨(다시)' : 'Spotify 연동'}</button>
+          <button class="btn" id="spDisconnect">연동 해제</button>
+        </div>
       </div>
       <div class="kbd"><code>Esc</code> 메뉴</div>
     `;
@@ -588,6 +723,10 @@ await fetch('/api/runs', { method:'POST', body: fd });
     const refreshBtn = document.getElementById('refreshBtn');
     const fillCovers = document.getElementById('fillCovers');
     const loadRuns = document.getElementById('loadRuns');
+    const spSave = document.getElementById('spSave');
+    const spClientInput = document.getElementById('spClientId');
+    const spConnect = document.getElementById('spConnect');
+    const spDisconnect = document.getElementById('spDisconnect');
 
     save.addEventListener('click', () => {
       setNick(input.value.trim());
@@ -620,6 +759,19 @@ await fetch('/api/runs', { method:'POST', body: fd });
     loadRuns.addEventListener('click', async () => {
       state.page = 'runs';
       await refreshRuns();
+    });
+
+    spSave.addEventListener('click', () => {
+      setSpotifyClientId(spClientInput.value.trim());
+      showToast('Spotify', 'Client ID 저장됨');
+    });
+    spConnect.addEventListener('click', () => spotifyLogin());
+    spDisconnect.addEventListener('click', () => {
+      setSpotifyToken('');
+      localStorage.removeItem('runrank_spotify_verifier');
+      localStorage.removeItem('runrank_spotify_oauth_state');
+      showToast('Spotify', '연동 해제');
+      render();
     });
   }
 
@@ -729,19 +881,26 @@ await fetch('/api/runs', { method:'POST', body: fd });
     }
   }
 
-  function vote(){
+  // ✅ 체크/해제: "런닝할 때 들은 곡"을 묶어서 Run 저장 시 한 번에 투표
+  function toggleCheck(){
+    let id = null;
     if (state.page === 'tracks'){
       const list = state.tracks || [];
       const t = list[(state.listIndex % list.length + list.length) % list.length];
-      const id = t?.id ?? t?.track_id ?? t?.trackId;
-      if (id == null) return showToast('오류', 'track id 없음');
-      return submit(id);
+      id = t?.id ?? t?.track_id ?? t?.trackId;
+    } else if (state.page === 'detail'){
+      id = state.selectedTrack?.id ?? state.selectedTrack?.track_id ?? state.selectedTrack?.trackId;
     }
-    if (state.page === 'detail'){
-      const id = state.selectedTrack?.id ?? state.selectedTrack?.track_id ?? state.selectedTrack?.trackId;
-      if (id == null) return showToast('오류', 'track id 없음');
-      return submit(id);
+    if (id == null) return;
+    id = Number(id);
+    if (state.checkedTrackIds.has(id)){
+      state.checkedTrackIds.delete(id);
+      showToast('해제', `선택곡 ${state.checkedTrackIds.size}개`);
+    } else {
+      state.checkedTrackIds.add(id);
+      showToast('체크', `선택곡 ${state.checkedTrackIds.size}개`);
     }
+    render();
   }
 
   function bind(){
@@ -749,7 +908,7 @@ await fetch('/api/runs', { method:'POST', body: fd });
     el.btnPrev.addEventListener('click', moveUp);
     el.btnNext.addEventListener('click', moveDown);
     el.btnCenter.addEventListener('click', select);
-    el.btnPlay.addEventListener('click', vote);
+    el.btnPlay.addEventListener('click', toggleCheck);
 
     window.addEventListener('keydown', (e) => {
       const k = e.key;
@@ -757,11 +916,73 @@ await fetch('/api/runs', { method:'POST', body: fd });
       else if (k === 'ArrowDown') { e.preventDefault(); moveDown(); }
       else if (k === 'Enter') { e.preventDefault(); select(); }
       else if (k === 'Escape') { e.preventDefault(); goBack(); }
-      else if (k === ' ') { e.preventDefault(); vote(); }
+      else if (k === ' ') { e.preventDefault(); toggleCheck(); }
     });
 
     window.addEventListener('online', () => { state.online = true; render(); });
     window.addEventListener('offline', () => { state.online = false; render(); });
+
+    // ✅ Clickwheel rotate (touch/mouse): TannerV iPod 느낌으로 스크롤
+    // - 휠을 원형으로 문지르면 위/아래 이동
+    // - 너무 예민하지 않게 각도 누적 후 스텝 이동
+    const wheel = document.querySelector('.wheel');
+    if (wheel){
+      let tracking = false;
+      let lastAng = 0;
+      let acc = 0;
+      const STEP_DEG = 22; // 작게 하면 민감해짐
+
+      const getAngle = (clientX, clientY) => {
+        const r = wheel.getBoundingClientRect();
+        const cx = r.left + r.width/2;
+        const cy = r.top + r.height/2;
+        const dx = clientX - cx;
+        const dy = clientY - cy;
+        return Math.atan2(dy, dx) * 180 / Math.PI;
+      };
+      const normDelta = (d) => {
+        // -180..180로 정규화
+        while (d > 180) d -= 360;
+        while (d < -180) d += 360;
+        return d;
+      };
+
+      wheel.addEventListener('pointerdown', (e) => {
+        // 버튼 클릭은 기존 핸들러로 처리되게 두고, 휠 본체 드래그만 잡기
+        if (e.target?.classList?.contains('center') || e.target?.classList?.contains('wheelBtn')) return;
+        tracking = true;
+        wheel.setPointerCapture(e.pointerId);
+        lastAng = getAngle(e.clientX, e.clientY);
+        acc = 0;
+      });
+
+      wheel.addEventListener('pointermove', (e) => {
+        if (!tracking) return;
+        const ang = getAngle(e.clientX, e.clientY);
+        const d = normDelta(ang - lastAng);
+        lastAng = ang;
+        acc += d;
+
+        // clockwise(+): down, counter(-): up
+        while (acc >= STEP_DEG){
+          acc -= STEP_DEG;
+          moveDown();
+        }
+        while (acc <= -STEP_DEG){
+          acc += STEP_DEG;
+          moveUp();
+        }
+      });
+
+      const end = (e) => {
+        if (!tracking) return;
+        tracking = false;
+        try { wheel.releasePointerCapture(e.pointerId); } catch(_){ }
+      };
+      wheel.addEventListener('pointerup', end);
+      wheel.addEventListener('pointercancel', end);
+      wheel.addEventListener('pointerleave', end);
+    }
   }
 
   function tick(){ el.clock.textContent = fmtClock(); }
@@ -782,9 +1003,15 @@ await fetch('/api/runs', { method:'POST', body: fd });
   tick();
   setInterval(tick, 1000 * 10);
 
+  // ✅ OAuth callback 처리(Spotify)
+  handleSpotifyCallback();
+
   refreshAll();
 })();
 </script>
 </body>
 </html>
+
+
+
 

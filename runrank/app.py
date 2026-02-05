@@ -15,6 +15,23 @@ import urllib.request
 
 app = FastAPI()
 
+from pathlib import Path
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"  # 남겨둬도 됨
+
+# ✅ 정적 파일을 /static 으로 서빙 (runrank/static 폴더)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# ✅ 홈(/)은 무조건 static/index.html을 반환 (templates 혼선 제거)
+@app.get("/", include_in_schema=False)
+def root():
+    return FileResponse(str(STATIC_DIR / "index.html"))
+
+
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get(
     "RUNRANK_DB_PATH",
