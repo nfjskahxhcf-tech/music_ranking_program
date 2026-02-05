@@ -26,308 +26,67 @@
       --screenRadius: 12px;
       --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", Helvetica, Arial, sans-serif;
     }
-
     html,body{height:100%; margin:0; background: radial-gradient(1200px 800px at 70% 20%, #1a2b3a 0%, var(--bg) 55%, #06060a 100%); color:var(--text); font-family:var(--font);}
     *{box-sizing:border-box;}
     a{color:inherit}
 
-    .wrap{
-      min-height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding: 26px 18px;
-    }
+    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:26px 18px;}
+    .ipod{width:min(360px, 92vw);aspect-ratio:9/14;border-radius:36px;background:linear-gradient(180deg,var(--device) 0%,var(--device2) 100%);box-shadow:0 24px 70px var(--shadow);padding:18px 16px 20px;position:relative;}
+    .ipod:before{content:"";position:absolute;inset:10px 10px auto 10px;height:20px;border-radius:16px;background:rgba(255,255,255,.35);filter:blur(.2px);}
 
-    /* iPod shell */
-    .ipod{
-      width:min(360px, 92vw);
-      aspect-ratio: 9/14;
-      border-radius: 36px;
-      background: linear-gradient(180deg, var(--device) 0%, var(--device2) 100%);
-      box-shadow: 0 24px 70px var(--shadow);
-      padding: 18px 16px 20px;
-      position:relative;
-    }
-    .ipod:before{
-      content:"";
-      position:absolute;
-      inset: 10px 10px auto 10px;
-      height: 20px;
-      border-radius: 16px;
-      background: rgba(255,255,255,.35);
-      filter: blur(0.2px);
-    }
+    .screen{height:40%;border-radius:var(--screenRadius);background:linear-gradient(180deg,var(--screen2),var(--screen));border:1px solid rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);padding:10px 10px 12px;overflow:hidden;position:relative;}
+    .status{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);letter-spacing:.2px;padding:2px 2px 6px;}
+    .status .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.09);color:var(--muted);}
 
-    /* Screen */
-    .screen{
-      height: 40%;
-      border-radius: var(--screenRadius);
-      background: linear-gradient(180deg, var(--screen2), var(--screen));
-      border: 1px solid rgba(0,0,0,.25);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
-      padding: 10px 10px 12px;
-      overflow:hidden;
-      position:relative;
-    }
-    .status{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      font-size: 12px;
-      color: var(--muted);
-      letter-spacing: .2px;
-      padding: 2px 2px 6px;
-    }
-    .status .pill{
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.09);
-      color: var(--muted);
-    }
+    .view{height:calc(100% - 26px);display:flex;flex-direction:column;gap:8px;}
+    .titleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;}
+    .titleRow h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.4px;}
+    .titleRow .hint{font-size:11px;color:var(--muted);}
 
-    .view{
-      height: calc(100% - 26px);
-      display:flex;
-      flex-direction:column;
-      gap: 8px;
-    }
-
-    .titleRow{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      padding: 0 2px;
-    }
-    .titleRow h1{
-      margin:0;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: .4px;
-    }
-    .titleRow .hint{
-      font-size: 11px;
-      color: var(--muted);
-    }
-
-    .list{
-      flex:1;
-      overflow:auto;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.04);
-      padding: 6px;
-    }
-    .item{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      padding: 8px 8px;
-      border-radius: 10px;
-      cursor: default;
-      user-select:none;
-    }
+    .list{flex:1;overflow:auto;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);padding:6px;}
+    .item{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:10px;cursor:default;user-select:none;}
     .item + .item{margin-top:6px;}
-    .item .thumb{
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.10);
-      overflow:hidden;
-      flex:0 0 auto;
-      display:grid;
-      place-items:center;
-      color: rgba(255,255,255,.55);
-      font-size: 12px;
-    }
-    .item .thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+    .item .thumb{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);overflow:hidden;flex:0 0 auto;display:grid;place-items:center;color:rgba(255,255,255,.55);font-size:12px;}
+    .item .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
     .item .meta{min-width:0;}
-    .item .meta .name{
-      font-size: 12px;
-      font-weight: 700;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      line-height: 1.2;
-    }
-    .item .meta .sub{
-      margin-top: 2px;
-      font-size: 11px;
-      color: var(--muted);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      line-height: 1.2;
-    }
-    .item .right{
-      margin-left:auto;
-      font-size: 12px;
-      color: var(--muted);
-      font-variant-numeric: tabular-nums;
-    }
-    .item.active{
-      background: rgba(123,220,255,.16);
-      border: 1px solid rgba(123,220,255,.30);
-    }
-    .item.active .right{color: var(--text);}
+    .item .meta .name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+    .item .meta .sub{margin-top:2px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+    .item .right{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+    .item.active{background:rgba(123,220,255,.16);border:1px solid rgba(123,220,255,.30);}
+    .item.active .right{color:var(--text);}
 
-    .detail{
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.04);
-      padding: 10px;
-      height: 100%;
-    }
-    .detailTop{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-    }
-    .cover{
-      width: 54px;
-      height: 54px;
-      border-radius: 12px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.10);
-      overflow:hidden;
-      flex:0 0 auto;
-      display:grid;
-      place-items:center;
-      color: rgba(255,255,255,.55);
-      font-size: 12px;
-    }
-    .cover img{width:100%; height:100%; object-fit:cover; display:block;}
+    .detail{display:flex;flex-direction:column;gap:10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);padding:10px;height:100%;}
+    .detailTop{display:flex;gap:10px;align-items:center;}
+    .cover{width:54px;height:54px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);overflow:hidden;flex:0 0 auto;display:grid;place-items:center;color:rgba(255,255,255,.55);font-size:12px;}
+    .cover img{width:100%;height:100%;object-fit:cover;display:block;}
     .detailTop .names{min-width:0;}
-    .detailTop .names .main{
-      font-size: 13px;
-      font-weight: 900;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .detailTop .names .sub{
-      margin-top: 2px;
-      font-size: 11px;
-      color: var(--muted);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .cta{
-      margin-top:auto;
-      display:flex;
-      gap: 8px;
-      align-items:center;
-      justify-content:space-between;
-    }
-    .btn{
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      border-radius: 12px;
-      padding: 8px 10px;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing:.2px;
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-    }
-    .btn.primary{
-      border-color: rgba(123,220,255,.28);
-      background: rgba(123,220,255,.14);
-    }
-    .btn:active{transform: translateY(1px);}
+    .detailTop .names .main{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .detailTop .names .sub{margin-top:2px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .cta{margin-top:auto;display:flex;gap:8px;align-items:center;justify-content:space-between;}
+    .btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:var(--text);border-radius:12px;padding:8px 10px;font-size:12px;font-weight:800;letter-spacing:.2px;display:inline-flex;align-items:center;gap:8px;}
+    .btn.primary{border-color:rgba(123,220,255,.28);background:rgba(123,220,255,.14);}
+    .btn:active{transform:translateY(1px);}
 
-    /* Clickwheel */
-    .wheelWrap{
-      height: 60%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding-top: 14px;
-    }
-    .wheel{
-      width: 82%;
-      aspect-ratio: 1/1;
-      border-radius: 999px;
-      background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.65), rgba(255,255,255,.22) 35%, rgba(0,0,0,.05) 66%, rgba(0,0,0,.10) 100%);
-      border: 1px solid rgba(0,0,0,.20);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 10px 28px rgba(0,0,0,.16);
-      position:relative;
-      user-select:none;
-      touch-action: manipulation;
-    }
-    .wheel .center{
-      position:absolute;
-      inset: 30%;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(255,255,255,.20) 60%, rgba(0,0,0,.06) 100%);
-      border: 1px solid rgba(0,0,0,.20);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
-      display:grid;
-      place-items:center;
-      font-weight:900;
-      color: rgba(20,20,24,.65);
-      cursor:pointer;
-    }
-    .wheelBtn{
-      position:absolute;
-      display:grid;
-      place-items:center;
-      width: 36%;
-      height: 20%;
-      font-size: 12px;
-      font-weight: 900;
-      color: rgba(20,20,24,.65);
-      cursor:pointer;
-    }
-    .wheelBtn.top{top: 4%; left: 32%;}
-    .wheelBtn.bottom{bottom: 4%; left: 32%;}
-    .wheelBtn.left{left: 4%; top: 40%;}
-    .wheelBtn.right{right: 4%; top: 40%;}
-    .wheelBtn small{font-size:10px; letter-spacing:.6px;}
+    .wheelWrap{height:60%;display:flex;align-items:center;justify-content:center;padding-top:14px;}
+    .wheel{width:82%;aspect-ratio:1/1;border-radius:999px;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.65),rgba(255,255,255,.22) 35%,rgba(0,0,0,.05) 66%,rgba(0,0,0,.10) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 10px 28px rgba(0,0,0,.16);position:relative;user-select:none;touch-action:manipulation;}
+    .wheel .center{position:absolute;inset:30%;border-radius:999px;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.85),rgba(255,255,255,.20) 60%,rgba(0,0,0,.06) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);display:grid;place-items:center;font-weight:900;color:rgba(20,20,24,.65);cursor:pointer;}
+    .wheelBtn{position:absolute;display:grid;place-items:center;width:36%;height:20%;font-size:12px;font-weight:900;color:rgba(20,20,24,.65);cursor:pointer;}
+    .wheelBtn.top{top:4%;left:32%;}
+    .wheelBtn.bottom{bottom:4%;left:32%;}
+    .wheelBtn.left{left:4%;top:40%;}
+    .wheelBtn.right{right:4%;top:40%;}
+    .wheelBtn small{font-size:10px;letter-spacing:.6px;}
 
-    /* Toast */
-    .toast{
-      position:absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: rgba(0,0,0,.55);
-      border: 1px solid rgba(255,255,255,.12);
-      color: var(--text);
-      font-size: 12px;
-      display:none;
-      backdrop-filter: blur(8px);
-    }
+    .toast{position:absolute;left:10px;right:10px;bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);color:var(--text);font-size:12px;display:none;backdrop-filter:blur(8px);}
     .toast.show{display:block;}
-    .toast .sub{color: rgba(255,255,255,.75); margin-top:3px; font-size: 11px;}
+    .toast .sub{color:rgba(255,255,255,.75);margin-top:3px;font-size:11px;}
 
-    /* helper */
-    .kbd{
-      font-size:11px;
-      color: var(--muted);
-      padding: 0 2px;
-    }
-    .kbd code{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 10px;
-      background: rgba(255,255,255,.08);
-      border:1px solid rgba(255,255,255,.10);
-      padding: 2px 6px;
-      border-radius: 8px;
-      color: var(--text);
-    }
+    .kbd{font-size:11px;color:var(--muted);padding:0 2px;}
+    .kbd code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);padding:2px 6px;border-radius:8px;color:var(--text);}
+
+    input,select{width:100%;padding:10px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:var(--text);outline:none;}
+    label{font-size:11px;color:var(--muted);}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   </style>
 </head>
 <body>
@@ -339,9 +98,7 @@
           <div id="clock">--:--</div>
         </div>
 
-        <div class="view" id="view">
-          <!-- JS renders -->
-        </div>
+        <div class="view" id="view"></div>
 
         <div class="toast" id="toast">
           <div id="toastTitle">알림</div>
@@ -363,30 +120,29 @@
 
 <script>
 (() => {
-  // ---------- PWA ----------
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/service-worker.js').catch(() => {});
     });
   }
 
-  // ---------- State ----------
   const state = {
-    page: 'menu',          // menu | tracks | ranking | hot | settings | about | detail
+    page: 'menu',   // menu | tracks | ranking | hot | runs | run_new | settings | about | detail
     menuIndex: 0,
     listIndex: 0,
     tracks: [],
     ranking: [],
     hot: [],
+    runs: [],
     selectedTrack: null,
     online: navigator.onLine,
-    lastFetchAt: 0,
   };
 
   const MENU = [
     { key: 'tracks',  label: 'Tracks',  hint: '곡 목록 / 추천' },
     { key: 'ranking', label: 'Ranking', hint: '전체 랭킹' },
     { key: 'hot',     label: 'Hot',     hint: '최근 인기' },
+    { key: 'runs',    label: 'Runs',    hint: '런닝 기록 + 사진' },
     { key: 'settings',label: 'Settings',hint: '닉네임 / 옵션' },
     { key: 'about',   label: 'About',   hint: '앱 정보' },
   ];
@@ -405,13 +161,11 @@
     btnCenter: document.getElementById('btnCenter'),
   };
 
-  // ---------- Utils ----------
   function fmtClock(d=new Date()){
     const hh = String(d.getHours()).padStart(2,'0');
     const mm = String(d.getMinutes()).padStart(2,'0');
     return `${hh}:${mm}`;
   }
-
   function showToast(title, sub=''){
     el.toastTitle.textContent = title;
     el.toastSub.textContent = sub;
@@ -419,19 +173,13 @@
     clearTimeout(showToast._t);
     showToast._t = setTimeout(() => el.toast.classList.remove('show'), 1800);
   }
-
   function safeText(s){ return (s ?? '').toString(); }
 
-  function getNick(){
-    return localStorage.getItem('runrank_nick') || '';
-  }
-  function setNick(v){
-    localStorage.setItem('runrank_nick', v);
-  }
+  function getNick(){ return localStorage.getItem('runrank_nick') || ''; }
+  function setNick(v){ localStorage.setItem('runrank_nick', v); }
 
-  function pickCoverUrl(track){
-    // back-compat: cover_url / album_art / image_url
-    return track?.cover_url || track?.album_art || track?.image_url || '';
+  function pickCoverUrl(x){
+    return x?.cover_url || x?.album_art || x?.image_url || '';
   }
 
   async function apiGet(path){
@@ -442,6 +190,7 @@
 
   async function refreshAll(){
     try {
+      // tracks는 커버 자동채우기 옵션 없이 먼저 빠르게
       const [tracks, ranking, hot] = await Promise.all([
         apiGet('/api/tracks'),
         apiGet('/api/ranking'),
@@ -450,13 +199,24 @@
       state.tracks = Array.isArray(tracks) ? tracks : (tracks?.tracks || []);
       state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
       state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
-      state.lastFetchAt = Date.now();
       state.online = true;
       render();
     } catch (e){
       state.online = navigator.onLine;
       showToast('오프라인', '네트워크를 확인해줘');
       render();
+    }
+  }
+
+  async function refreshRuns(){
+    try{
+      const nick = getNick();
+      const qs = nick ? `?user=${encodeURIComponent(nick)}` : '';
+      const runs = await apiGet('/api/runs' + qs);
+      state.runs = Array.isArray(runs) ? runs : [];
+      render();
+    }catch(e){
+      showToast('Runs 실패', '서버 응답이 이상해');
     }
   }
 
@@ -468,9 +228,9 @@
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
       showToast('추천 완료', '랭킹에 반영됐어');
-      // refresh rankings (fast)
       const [ranking, hot] = await Promise.all([
         apiGet('/api/ranking'),
         apiGet('/api/hot_ranking'),
@@ -479,31 +239,13 @@
       state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
       render();
     } catch(e){
-      showToast('실패', '서버 응답이 이상해');
+      showToast('실패', String(e.message || '서버 오류').slice(0,80));
     }
   }
 
   function clampIndex(i, n){
     if (n <= 0) return 0;
     return (i % n + n) % n;
-  }
-
-  // ---------- Rendering ----------
-  function render(){
-    el.pill.textContent = state.online ? 'ONLINE' : 'OFFLINE';
-    el.pill.style.opacity = state.online ? '1' : '0.75';
-
-    if (state.page === 'detail') return renderDetail();
-
-    if (state.page === 'menu') return renderMenu();
-    if (state.page === 'tracks') return renderTracks();
-    if (state.page === 'ranking') return renderRanking();
-    if (state.page === 'hot') return renderHot();
-    if (state.page === 'settings') return renderSettings();
-    if (state.page === 'about') return renderAbout();
-
-    state.page = 'menu';
-    renderMenu();
   }
 
   function renderHeader(title, hint){
@@ -513,6 +255,25 @@
         <div class="hint">${hint || ''}</div>
       </div>
     `;
+  }
+
+  function render(){
+    el.pill.textContent = state.online ? 'ONLINE' : 'OFFLINE';
+    el.pill.style.opacity = state.online ? '1' : '0.75';
+
+    if (state.page === 'detail') return renderDetail();
+    if (state.page === 'run_new') return renderRunNew();
+
+    if (state.page === 'menu') return renderMenu();
+    if (state.page === 'tracks') return renderTracks();
+    if (state.page === 'ranking') return renderRanking();
+    if (state.page === 'hot') return renderHot();
+    if (state.page === 'runs') return renderRuns();
+    if (state.page === 'settings') return renderSettings();
+    if (state.page === 'about') return renderAbout();
+
+    state.page = 'menu';
+    renderMenu();
   }
 
   function renderMenu(){
@@ -530,7 +291,7 @@
 
     el.view.innerHTML = `
       ${renderHeader('RunRank', 'iPod UI')}
-      <div class="list" id="list">${items}</div>
+      <div class="list">${items}</div>
       <div class="kbd">조작: <code>↑</code><code>↓</code> 이동 · <code>Enter</code> 선택 · <code>Esc</code> 뒤로</div>
     `;
   }
@@ -544,7 +305,7 @@
       const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
       const artist = safeText(t.artist || t.singer || t.by || '');
       return `
-        <div class="item ${idx===state.listIndex?'active':''}" data-idx="${idx}">
+        <div class="item ${idx===state.listIndex?'active':''}">
           <div class="thumb">${cover ? `<img alt="" src="${cover}">` : '♪'}</div>
           <div class="meta">
             <div class="name">${name}</div>
@@ -557,18 +318,17 @@
 
     el.view.innerHTML = `
       ${renderHeader('Tracks', '센터=상세')}
-      <div class="list" id="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">/api/tracks 확인</div></div></div>'}</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">/api/tracks 확인</div></div></div>'}</div>
       <div class="kbd"><code>Enter</code> 상세 · <code>▶︎/⏸</code> 추천 · <code>Esc</code> 메뉴</div>
     `;
   }
 
   function normalizeRankingItem(x){
-    // server may return dict or tuple-like
     const title = safeText(x?.title || x?.track || x?.name || x?.[0] || '');
-    const score = x?.score ?? x?.count ?? x?.votes ?? x?.[1] ?? '';
+    const score = x?.votes ?? x?.score ?? x?.count ?? x?.[1] ?? '';
     const artist = safeText(x?.artist || x?.by || x?.[2] || '');
-    const cover = pickCoverUrl(x);
-    return { title, artist, score, cover };
+    const cover_url = pickCoverUrl(x);
+    return { title, artist, score, cover_url };
   }
 
   function renderRanking(){
@@ -576,8 +336,8 @@
     state.listIndex = clampIndex(state.listIndex, list.length);
 
     const items = list.map((r, idx) => `
-      <div class="item ${idx===state.listIndex?'active':''}" data-idx="${idx}">
-        <div class="thumb">${r.cover ? `<img alt="" src="${r.cover}">` : String(idx+1)}</div>
+      <div class="item ${idx===state.listIndex?'active':''}">
+        <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : String(idx+1)}</div>
         <div class="meta">
           <div class="name">${r.title || '—'}</div>
           <div class="sub">${r.artist || ' '}</div>
@@ -588,7 +348,7 @@
 
     el.view.innerHTML = `
       ${renderHeader('Ranking', '전체')}
-      <div class="list" id="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">추천을 먼저 해봐</div></div></div>'}</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">추천을 먼저 해봐</div></div></div>'}</div>
       <div class="kbd"><code>Esc</code> 메뉴</div>
     `;
   }
@@ -598,8 +358,8 @@
     state.listIndex = clampIndex(state.listIndex, list.length);
 
     const items = list.map((r, idx) => `
-      <div class="item ${idx===state.listIndex?'active':''}" data-idx="${idx}">
-        <div class="thumb">${r.cover ? `<img alt="" src="${r.cover}">` : '🔥'}</div>
+      <div class="item ${idx===state.listIndex?'active':''}">
+        <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : '🔥'}</div>
         <div class="meta">
           <div class="name">${r.title || '—'}</div>
           <div class="sub">${r.artist || ' '}</div>
@@ -610,9 +370,127 @@
 
     el.view.innerHTML = `
       ${renderHeader('Hot', '최근')}
-      <div class="list" id="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 추천이 없어</div></div></div>'}</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 추천이 없어</div></div></div>'}</div>
       <div class="kbd"><code>Esc</code> 메뉴</div>
     `;
+  }
+
+  function renderRuns(){
+    const runs = state.runs || [];
+    state.listIndex = clampIndex(state.listIndex, runs.length);
+
+    const items = runs.map((r, idx) => {
+      const t = r.track;
+      const cover = pickCoverUrl(t);
+      const title = t ? `${t.title}` : '—';
+      const sub = `${r.date_label} · ${r.distance_km}km · ${fmtDur(r.duration_sec)} · ${r.pace}`;
+      return `
+        <div class="item ${idx===state.listIndex?'active':''}">
+          <div class="thumb">${r.photo_url ? `<img alt="" src="${r.photo_url}">` : (cover ? `<img alt="" src="${cover}">` : '🏃')}</div>
+          <div class="meta">
+            <div class="name">${title}</div>
+            <div class="sub">${sub}</div>
+          </div>
+          <div class="right">›</div>
+        </div>
+      `;
+    }).join('');
+
+    el.view.innerHTML = `
+      ${renderHeader('Runs', '센터=새 기록')}
+      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">센터(SELECT)로 첫 기록 추가</div></div></div>'}</div>
+      <div class="kbd"><code>Enter</code> 새 기록 · <code>Esc</code> 메뉴</div>
+    `;
+  }
+
+  function renderRunNew(){
+    const nick = getNick();
+    const trackOptions = (state.tracks || []).map(t => {
+      const label = `${safeText(t.title)} - ${safeText(t.artist)}`;
+      return `<option value="${t.id}">${escapeHtml(label)}</option>`;
+    }).join('');
+
+    el.view.innerHTML = `
+      ${renderHeader('New Run', '사진 업로드')}
+      <div class="detail">
+        <div>
+          <label>user (닉네임)</label>
+          <input id="run_user" value="${escapeAttr(nick)}" placeholder="닉네임 먼저 설정 추천" />
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>distance_km</label>
+            <input id="run_dist" type="number" step="0.01" placeholder="예: 5" />
+          </div>
+          <div>
+            <label>duration_sec</label>
+            <input id="run_dur" type="number" step="1" placeholder="예: 1800" />
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>date_label</label>
+            <input id="run_date" placeholder="예: 2026-02-05" />
+          </div>
+          <div>
+            <label>track</label>
+            <select id="run_track">
+              <option value="">(선택 안 함)</option>
+              ${trackOptions}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label>photo</label>
+          <input id="run_photo" type="file" accept="image/*" />
+        </div>
+
+        <div class="cta">
+          <button class="btn" id="run_cancel">취소</button>
+          <button class="btn primary" id="run_submit">저장</button>
+        </div>
+      </div>
+      <div class="kbd"><code>Esc</code> 취소</div>
+    `;
+
+    document.getElementById('run_cancel').addEventListener('click', () => {
+      state.page = 'runs'; render();
+    });
+
+    document.getElementById('run_submit').addEventListener('click', async () => {
+      const user = document.getElementById('run_user').value.trim();
+      const distance_km = document.getElementById('run_dist').value.trim();
+      const duration_sec = document.getElementById('run_dur').value.trim();
+      const date_label = document.getElementById('run_date').value.trim() || new Date().toISOString().slice(0,10);
+      const track_id = document.getElementById('run_track').value;
+      const photo = document.getElementById('run_photo').files?.[0] || null;
+
+      if (!user) return showToast('에러', 'user(닉네임) 필요');
+      if (!distance_km || Number(distance_km) <= 0) return showToast('에러', 'distance_km 필요');
+      if (!duration_sec || Number(duration_sec) <= 0) return showToast('에러', 'duration_sec 필요');
+
+      const fd = new FormData();
+      fd.append('user', user);
+      fd.append('distance_km', String(distance_km));
+      fd.append('duration_sec', String(duration_sec));
+      fd.append('date_label', date_label);
+      if (track_id) fd.append('track_id', String(track_id));
+      if (photo) fd.append('photo', photo);
+
+      try{
+        const res = await fetch('/api/runs', { method:'POST', body: fd });
+        const data = await res.json().catch(()=> ({}));
+        if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
+        showToast('저장됨', `pace: ${data.pace}`);
+        state.page = 'runs';
+        await refreshRuns();
+      }catch(e){
+        showToast('실패', String(e.message || '서버 오류').slice(0,80));
+      }
+    });
   }
 
   function renderSettings(){
@@ -622,21 +500,26 @@
       <div class="detail">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
           <div style="font-weight:900; font-size:13px;">Nickname</div>
-          <div style="font-size:11px; color: var(--muted);">추천 기록에 사용</div>
+          <div style="font-size:11px; color: var(--muted);">추천/런 기록에 사용</div>
         </div>
+
         <div style="display:flex; gap:8px; align-items:center;">
-          <input id="nickInput" value="${nick.replace(/"/g,'&quot;')}" placeholder="예) joon" 
-            style="flex:1; padding:10px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.25); color:var(--text); outline:none;">
+          <input id="nickInput" value="${escapeAttr(nick)}" placeholder="예) joon" style="flex:1;">
           <button class="btn primary" id="saveNick">저장</button>
         </div>
 
         <div style="margin-top:8px; font-size:11px; color: var(--muted); line-height:1.35;">
-          팁: <b>Tracks</b>에서 트랙 선택 후 <b>▶︎/⏸</b> 버튼을 누르면 추천이 올라감.
+          커버 자동 채우기: 아래 버튼 누르면 커버 없는 트랙 일부를 서버가 iTunes로 찾아 캐시에 저장함.
         </div>
 
         <div class="cta">
-          <button class="btn" id="refreshBtn">데이터 새로고침</button>
+          <button class="btn" id="fillCovers">커버 채우기</button>
+          <button class="btn" id="refreshBtn">새로고침</button>
+        </div>
+
+        <div class="cta">
           <button class="btn" id="clearNick">닉네임 지우기</button>
+          <button class="btn" id="loadRuns">내 Runs 불러오기</button>
         </div>
       </div>
       <div class="kbd"><code>Esc</code> 메뉴</div>
@@ -646,6 +529,8 @@
     const input = document.getElementById('nickInput');
     const clear = document.getElementById('clearNick');
     const refreshBtn = document.getElementById('refreshBtn');
+    const fillCovers = document.getElementById('fillCovers');
+    const loadRuns = document.getElementById('loadRuns');
 
     save.addEventListener('click', () => {
       setNick(input.value.trim());
@@ -657,9 +542,27 @@
       input.value = '';
       showToast('삭제됨', '닉네임 제거');
     });
-    refreshBtn.addEventListener('click', () => {
+    refreshBtn.addEventListener('click', async () => {
       showToast('갱신', '데이터 불러오는 중…');
-      refreshAll();
+      await refreshAll();
+    });
+
+    fillCovers.addEventListener('click', async () => {
+      try{
+        showToast('커버', '찾는 중…');
+        // 서버가 일부 resolve하고 tracks 다시 받아오기
+        const t = await apiGet('/api/tracks?resolve_missing=1&resolve_limit=10');
+        state.tracks = Array.isArray(t) ? t : [];
+        showToast('완료', 'Tracks에 반영됨');
+        render();
+      }catch(e){
+        showToast('실패', '커버 채우기 오류');
+      }
+    });
+
+    loadRuns.addEventListener('click', async () => {
+      state.page = 'runs';
+      await refreshRuns();
     });
   }
 
@@ -667,18 +570,20 @@
     el.view.innerHTML = `
       ${renderHeader('About', 'RunRank')}
       <div class="detail">
-        <div style="font-weight:900;">현재 UI: iPod 스켈레톤</div>
+        <div style="font-weight:900;">이번 업데이트</div>
         <div style="font-size:11px; color: var(--muted); line-height:1.45;">
-          아직 휠 회전 제스처는 미구현(버튼/키보드로 조작).<br/>
-          API: <span style="color: var(--accent);">/api/tracks</span>,
-          <span style="color: var(--accent);">/api/submit</span>,
-          <span style="color: var(--accent);">/api/ranking</span>,
-          <span style="color: var(--accent);">/api/hot_ranking</span>
+          ✅ 앨범커버: 서버 캐시 + iTunes 검색<br/>
+          ✅ Runs: 런닝 기록 + 사진 업로드<br/>
+          <br/>
+          API:
+          <span style="color: var(--accent);">/api/tracks</span>,
+          <span style="color: var(--accent);">/api/covers/resolve_all</span>,
+          <span style="color: var(--accent);">/api/runs</span>
         </div>
         <div style="margin-top:auto; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="btn">v0.3 UI</span>
-          <span class="btn">PWA ready</span>
-          <span class="btn">Offline 캐시</span>
+          <span class="btn">v0.4</span>
+          <span class="btn">Covers</span>
+          <span class="btn">Runs+Photo</span>
         </div>
       </div>
       <div class="kbd"><code>Esc</code> 메뉴</div>
@@ -700,13 +605,15 @@
         <div class="detailTop">
           <div class="cover">${cover ? `<img alt="" src="${cover}">` : '♪'}</div>
           <div class="names">
-            <div class="main">${name}</div>
-            <div class="sub">${artist || ' '}</div>
+            <div class="main">${escapeHtml(name)}</div>
+            <div class="sub">${escapeHtml(artist || ' ')}</div>
           </div>
         </div>
+
         <div style="font-size:11px; color: var(--muted); line-height:1.45;">
-          <div>Track ID: <b style="color:var(--text)">${safeText(id)}</b></div>
-          <div>추천은 서버에 저장돼서 랭킹에 반영돼.</div>
+          <div>Track ID: <b style="color:var(--text)">${escapeHtml(String(id))}</b></div>
+          <div>▶︎/⏸ : 추천 / 좋아요</div>
+          <div>커버가 없으면 Settings에서 “커버 채우기” 눌러봐.</div>
         </div>
 
         <div class="cta">
@@ -721,7 +628,6 @@
     document.getElementById('voteBtn').addEventListener('click', () => submit(id));
   }
 
-  // ---------- Navigation ----------
   function goTo(page){
     state.page = page;
     state.listIndex = 0;
@@ -730,6 +636,7 @@
 
   function goBack(){
     if (state.page === 'detail') { state.page = 'tracks'; return render(); }
+    if (state.page === 'run_new') { state.page = 'runs'; return render(); }
     state.page = 'menu';
     render();
   }
@@ -748,20 +655,27 @@
   function select(){
     if (state.page === 'menu'){
       const key = MENU[(state.menuIndex % MENU.length + MENU.length) % MENU.length]?.key;
+      if (key === 'runs') { state.page = 'runs'; refreshRuns(); return; }
       return goTo(key || 'tracks');
     }
     if (state.page === 'tracks'){
-      const t = state.tracks[(state.listIndex % state.tracks.length + state.tracks.length) % state.tracks.length];
+      const list = state.tracks || [];
+      const t = list[(state.listIndex % list.length + list.length) % list.length];
       if (!t) return;
       state.selectedTrack = t;
       state.page = 'detail';
+      return render();
+    }
+    if (state.page === 'runs'){
+      state.page = 'run_new';
       return render();
     }
   }
 
   function vote(){
     if (state.page === 'tracks'){
-      const t = state.tracks[(state.listIndex % state.tracks.length + state.tracks.length) % state.tracks.length];
+      const list = state.tracks || [];
+      const t = list[(state.listIndex % list.length + list.length) % list.length];
       const id = t?.id ?? t?.track_id ?? t?.trackId;
       if (id == null) return showToast('오류', 'track id 없음');
       return submit(id);
@@ -773,7 +687,6 @@
     }
   }
 
-  // ---------- Inputs ----------
   function bind(){
     el.btnMenu.addEventListener('click', goBack);
     el.btnPrev.addEventListener('click', moveUp);
@@ -794,10 +707,19 @@
     window.addEventListener('offline', () => { state.online = false; render(); });
   }
 
-  // ---------- Init ----------
-  function tick(){
-    el.clock.textContent = fmtClock();
+  function tick(){ el.clock.textContent = fmtClock(); }
+
+  function fmtDur(sec){
+    sec = Number(sec||0);
+    const m = Math.floor(sec/60);
+    const s = sec - m*60;
+    return `${m}:${String(s).padStart(2,'0')}`;
   }
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;'); }
 
   bind();
   tick();
