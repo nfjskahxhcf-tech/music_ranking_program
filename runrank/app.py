@@ -60,9 +60,30 @@ def init_db():
         CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_per_day
         ON submissions(track_id, user, vote_day_kst)
     """)
+
+    # NOTE:
+    # (track_id, user, day) UNIQUE는 그대로 유지해서
+    # 같은 곡을 같은 날 중복 투표(재생 반복 등)하는 걸 자동으로 막는다.
+    # "투표 기회 1번"(user/day 1회) 제한은 vote_batches 테이블로 관리한다.
     cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_track ON submissions(track_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_ts ON submissions(ts_epoch)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_day ON submissions(vote_day_kst)")
+
+    # ✅ vote batch (user/day 1회만)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS vote_batches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user TEXT NOT NULL,
+            vote_day_kst TEXT NOT NULL,
+            ts_epoch INTEGER NOT NULL,
+            run_id INTEGER
+        )
+    """)
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_batch_user_day
+        ON vote_batches(user, vote_day_kst)
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_vote_batches_day ON vote_batches(vote_day_kst)")
 
     # ✅ cover cache
     cur.execute("""
@@ -92,13 +113,27 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_user ON runs(user)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_day ON runs(day_kst)")
 
+    # ✅ run -> tracks (한 런에 들은 곡들)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS run_tracks (
+            run_id INTEGER NOT NULL,
+            track_id INTEGER NOT NULL,
+            PRIMARY KEY(run_id, track_id)
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_run ON run_tracks(run_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_track ON run_tracks(track_id)")
+
     conn.commit()
     conn.close()
 
 init_db()
 
 class SubmitBody(BaseModel):
-    track_id: int
+    # 하위호환: 예전 클라이언트는 track_id 하나만 보냄
+    track_id: Optional[int] = None
+    # 신규: 한 번의 투표(배치)에서 여러 곡을 투표
+    track_ids: Optional[List[int]] = None
     user: Optional[str] = None
 
 class CoverResolveBody(BaseModel):
@@ -264,12 +299,22 @@ def resolve_all_covers(limit: int = 10):
 
 @app.post("/api/submit")
 def submit_vote(body: SubmitBody):
-    if body.track_id not in TRACK_IDS:
-        return {"ok": False, "error": "Invalid track id"}
-
     user = (body.user or "").strip()
     if not user:
-        return {"ok": False, "error": "user is required (to prevent duplicate votes per day)"}
+        return {"ok": False, "error": "user is required"}
+
+    # ✅ "투표 기회는 1번" = user/day 1회 배치만 가능
+    # ✅ "런닝할 때 들은 곡은 전부 투표" = 한 배치에서 여러 곡 가능
+    track_ids: List[int] = []
+    if body.track_ids:
+        track_ids = [int(x) for x in body.track_ids]
+    elif body.track_id is not None:
+        track_ids = [int(body.track_id)]
+
+    # 중복 제거 + 유효성
+    track_ids = [tid for tid in dict.fromkeys(track_ids) if tid in TRACK_IDS]
+    if not track_ids:
+        return {"ok": False, "error": "track_ids is required"}
 
     ts_epoch = now_utc_epoch()
     vote_day_kst = kst_day_str_from_epoch(ts_epoch)
@@ -278,24 +323,106 @@ def submit_vote(body: SubmitBody):
     cur = conn.cursor()
 
     cur.execute(
-        "SELECT 1 FROM submissions WHERE track_id=? AND user=? AND vote_day_kst=? LIMIT 1",
-        (body.track_id, user, vote_day_kst),
+        "SELECT id, run_id FROM vote_batches WHERE user=? AND vote_day_kst=? LIMIT 1",
+        (user, vote_day_kst),
     )
-    if cur.fetchone():
+    already_batch = cur.fetchone()
+    if already_batch:
         conn.close()
-        return {"ok": False, "error": f"already voted today (KST {vote_day_kst})"}
+        return {
+            "ok": False,
+            "error": f"already voted today (KST {vote_day_kst})",
+            "vote_day_kst": vote_day_kst,
+            "batch_id": already_batch["id"],
+            "run_id": already_batch["run_id"],
+        }
 
+    # 배치 생성
     cur.execute(
-        "INSERT INTO submissions (track_id, user, ts_epoch, vote_day_kst) VALUES (?, ?, ?, ?)",
-        (body.track_id, user, ts_epoch, vote_day_kst),
+        "INSERT INTO vote_batches(user, vote_day_kst, ts_epoch, run_id) VALUES(?, ?, ?, NULL)",
+        (user, vote_day_kst, ts_epoch),
     )
-    conn.commit()
+    batch_id = cur.lastrowid
 
-    cur.execute("SELECT COUNT(*) AS c FROM submissions WHERE track_id=?", (body.track_id,))
-    current_votes = cur.fetchone()["c"]
+    inserted = 0
+    for tid in track_ids:
+        # 동일 곡 중복 투표는 UNIQUE로 자동 차단(INSERT OR IGNORE)
+        cur.execute(
+            "INSERT OR IGNORE INTO submissions(track_id, user, ts_epoch, vote_day_kst) VALUES(?, ?, ?, ?)",
+            (tid, user, ts_epoch, vote_day_kst),
+        )
+        if cur.rowcount == 1:
+            inserted += 1
+
+    conn.commit()
     conn.close()
 
-    return {"ok": True, "track_id": body.track_id, "current_votes": current_votes, "vote_day_kst": vote_day_kst}
+    return {
+        "ok": True,
+        "vote_day_kst": vote_day_kst,
+        "batch_id": batch_id,
+        "tracks_voted": track_ids,
+        "inserted": inserted,
+    }
+
+
+def try_auto_vote_tracks(user: str, track_ids: List[int], run_id: Optional[int] = None) -> Dict[str, Any]:
+    """Runs 저장 시 들은 곡들을 한 번에 추천(= user/day 1회 배치)."""
+    if not track_ids:
+        return {"did_vote": False}
+
+    # 유효성 + 중복 제거
+    track_ids = [tid for tid in dict.fromkeys([int(x) for x in track_ids]) if tid in TRACK_IDS]
+    if not track_ids:
+        return {"did_vote": False, "error": "Invalid track ids"}
+
+    ts_epoch = now_utc_epoch()
+    vote_day_kst = kst_day_str_from_epoch(ts_epoch)
+
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT id, run_id FROM vote_batches WHERE user=? AND vote_day_kst=? LIMIT 1",
+        (user, vote_day_kst),
+    )
+    already_batch = cur.fetchone()
+    if already_batch:
+        conn.close()
+        return {
+            "did_vote": False,
+            "already_voted": True,
+            "vote_day_kst": vote_day_kst,
+            "batch_id": already_batch["id"],
+            "run_id": already_batch["run_id"],
+        }
+
+    # 배치 생성 (run_id 연결)
+    cur.execute(
+        "INSERT INTO vote_batches(user, vote_day_kst, ts_epoch, run_id) VALUES(?, ?, ?, ?)",
+        (user, vote_day_kst, ts_epoch, run_id),
+    )
+    batch_id = cur.lastrowid
+
+    inserted = 0
+    for tid in track_ids:
+        cur.execute(
+            "INSERT OR IGNORE INTO submissions(track_id, user, ts_epoch, vote_day_kst) VALUES(?, ?, ?, ?)",
+            (tid, user, ts_epoch, vote_day_kst),
+        )
+        if cur.rowcount == 1:
+            inserted += 1
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "did_vote": True,
+        "vote_day_kst": vote_day_kst,
+        "batch_id": batch_id,
+        "tracks_voted": track_ids,
+        "inserted": inserted,
+    }
 
 @app.get("/api/ranking")
 def ranking(from_ts: Optional[str] = None, to_ts: Optional[str] = None):
@@ -388,7 +515,10 @@ async def create_run(
     distance_km: float = Form(...),
     duration_sec: int = Form(...),
     date_label: str = Form(...),  # 예: 2026-02-05 or "오늘"
+    # 하위호환: 예전 클라이언트
     track_id: Optional[int] = Form(None),
+    # 신규: 한 런에 들은 곡들 (JSON 배열 or 콤마구분)
+    track_ids: Optional[str] = Form(None),
     photo: Optional[UploadFile] = File(None),
 ):
     user = (user or "").strip()
@@ -402,6 +532,25 @@ async def create_run(
 
     if track_id is not None and track_id not in TRACK_IDS:
         return {"ok": False, "error": "Invalid track id"}
+
+    # track_ids 파싱
+    parsed_track_ids: List[int] = []
+    if track_ids and track_ids.strip():
+        s = track_ids.strip()
+        try:
+            if s.startswith("["):
+                arr = json.loads(s)
+                if isinstance(arr, list):
+                    parsed_track_ids = [int(x) for x in arr]
+            else:
+                parsed_track_ids = [int(x) for x in s.split(",") if str(x).strip()]
+        except Exception:
+            parsed_track_ids = []
+
+    # 예전 필드(track_id)도 같이 합친다
+    if track_id is not None:
+        parsed_track_ids = [int(track_id)] + parsed_track_ids
+    parsed_track_ids = [tid for tid in dict.fromkeys(parsed_track_ids) if tid in TRACK_IDS]
 
     ts_epoch = now_utc_epoch()
     day_kst = kst_day_str_from_epoch(ts_epoch)
@@ -428,10 +577,27 @@ async def create_run(
     """, (user, ts_epoch, day_kst, date_label, float(distance_km), int(duration_sec), track_id, photo_url))
     conn.commit()
     run_id = cur.lastrowid
+
+    # run_tracks 저장 (멀티)
+    for tid in parsed_track_ids:
+        cur.execute("INSERT OR IGNORE INTO run_tracks(run_id, track_id) VALUES(?, ?)", (run_id, tid))
+    conn.commit()
     conn.close()
 
     pace = calc_pace_str(float(distance_km), int(duration_sec))
-    return {"ok": True, "id": run_id, "day_kst": day_kst, "pace": pace, "photo_url": photo_url}
+
+    # ✅ 런닝 기록 저장과 동시에(들었던 곡들) 자동 추천 시도
+    vote_result = try_auto_vote_tracks(user, parsed_track_ids, run_id=run_id)
+
+    return {
+        "ok": True,
+        "id": run_id,
+        "day_kst": day_kst,
+        "pace": pace,
+        "photo_url": photo_url,
+        "tracks": parsed_track_ids,
+        "vote": vote_result,
+    }
 
 @app.get("/api/runs")
 def list_runs(user: Optional[str] = None, limit: int = 30):
@@ -444,12 +610,40 @@ def list_runs(user: Optional[str] = None, limit: int = 30):
     else:
         cur.execute("SELECT * FROM runs ORDER BY ts_epoch DESC LIMIT ?", (n,))
     rows = cur.fetchall()
+
+    # run_tracks 한번에 가져오기
+    run_ids = [r["id"] for r in rows]
+    tracks_by_run: Dict[int, List[int]] = {rid: [] for rid in run_ids}
+    if run_ids:
+        q = "SELECT run_id, track_id FROM run_tracks WHERE run_id IN (%s) ORDER BY run_id" % (
+            ",".join(["?"] * len(run_ids))
+        )
+        cur.execute(q, run_ids)
+        for rr in cur.fetchall():
+            tracks_by_run.setdefault(rr["run_id"], []).append(rr["track_id"])
+
     conn.close()
 
     out = []
     for r in rows:
         tid = r["track_id"]
         t = TRACK_BY_ID.get(tid) if tid is not None else None
+        run_track_ids = tracks_by_run.get(r["id"], [])
+        # 하위호환: 예전 track_id만 있던 기록은 tracks에 포함
+        if (not run_track_ids) and (tid is not None):
+            run_track_ids = [tid]
+
+        tracks_info = []
+        for x in run_track_ids:
+            tt = TRACK_BY_ID.get(x)
+            if tt:
+                tracks_info.append({
+                    "id": tt["id"],
+                    "title": tt["title"],
+                    "artist": tt["artist"],
+                    "cover_url": (tt.get("cover_url") or get_cover_from_cache(tt["id"]))
+                })
+
         out.append({
             "id": r["id"],
             "user": r["user"],
@@ -459,7 +653,10 @@ def list_runs(user: Optional[str] = None, limit: int = 30):
             "distance_km": r["distance_km"],
             "duration_sec": r["duration_sec"],
             "pace": calc_pace_str(r["distance_km"], r["duration_sec"]),
+            # 예전 단일 트랙은 track에 유지
             "track": ({"id": t["id"], "title": t["title"], "artist": t["artist"], "cover_url": (t.get("cover_url") or get_cover_from_cache(t["id"]))} if t else None),
+            # 신규: 여러 트랙
+            "tracks": tracks_info,
             "photo_url": r["photo_url"]
         })
     return out
