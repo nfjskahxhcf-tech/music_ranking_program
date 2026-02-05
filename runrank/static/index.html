@@ -55,17 +55,21 @@
     .item.active{background:rgba(123,220,255,.16);border:1px solid rgba(123,220,255,.30);}
     .item.active .right{color:var(--text);}
 
-    .detail{display:flex;flex-direction:column;gap:10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);padding:10px;height:100%;}
-    .detailTop{display:flex;gap:10px;align-items:center;}
-    .cover{width:54px;height:54px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);overflow:hidden;flex:0 0 auto;display:grid;place-items:center;color:rgba(255,255,255,.55);font-size:12px;}
-    .cover img{width:100%;height:100%;object-fit:cover;display:block;}
-    .detailTop .names{min-width:0;}
-    .detailTop .names .main{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .detailTop .names .sub{margin-top:2px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .cta{margin-top:auto;display:flex;gap:8px;align-items:center;justify-content:space-between;}
-    .btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:var(--text);border-radius:12px;padding:8px 10px;font-size:12px;font-weight:800;letter-spacing:.2px;display:inline-flex;align-items:center;gap:8px;}
-    .btn.primary{border-color:rgba(123,220,255,.28);background:rgba(123,220,255,.14);}
-    .btn:active{transform:translateY(1px);}
+   .detail{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  padding:10px;
+  height:100%;
+  overflow:auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: 22px;
+}
+
 
     .wheelWrap{height:60%;display:flex;align-items:center;justify-content:center;padding-top:14px;}
     .wheel{width:82%;aspect-ratio:1/1;border-radius:999px;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.65),rgba(255,255,255,.22) 35%,rgba(0,0,0,.05) 66%,rgba(0,0,0,.10) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 10px 28px rgba(0,0,0,.16);position:relative;user-select:none;touch-action:manipulation;}
@@ -419,15 +423,16 @@
         </div>
 
         <div class="grid2">
-          <div>
-            <label>distance_km</label>
-            <input id="run_dist" type="number" step="0.01" placeholder="예: 5" />
-          </div>
-          <div>
-            <label>duration_sec</label>
-            <input id="run_dur" type="number" step="1" placeholder="예: 1800" />
-          </div>
-        </div>
+  <div>
+    <label>distance_km</label>
+    <input id="run_dist" type="number" step="0.01" placeholder="예: 5" />
+  </div>
+  <div>
+    <label>pace (mm:ss / km)</label>
+    <input id="run_pace" placeholder="예: 5:30" />
+  </div>
+</div>
+
 
         <div class="grid2">
           <div>
@@ -461,37 +466,47 @@
     });
 
     document.getElementById('run_submit').addEventListener('click', async () => {
-      const user = document.getElementById('run_user').value.trim();
-      const distance_km = document.getElementById('run_dist').value.trim();
-      const duration_sec = document.getElementById('run_dur').value.trim();
-      const date_label = document.getElementById('run_date').value.trim() || new Date().toISOString().slice(0,10);
-      const track_id = document.getElementById('run_track').value;
-      const photo = document.getElementById('run_photo').files?.[0] || null;
+  const user = document.getElementById('run_user').value.trim();
+  const distance_km = document.getElementById('run_dist').value.trim();
+  const paceStr = document.getElementById('run_pace').value.trim();
+  const date_label = document.getElementById('run_date').value.trim() || new Date().toISOString().slice(0,10);
+  const track_id = document.getElementById('run_track').value;
+  const photo = document.getElementById('run_photo').files?.[0] || null;
 
-      if (!user) return showToast('에러', 'user(닉네임) 필요');
-      if (!distance_km || Number(distance_km) <= 0) return showToast('에러', 'distance_km 필요');
-      if (!duration_sec || Number(duration_sec) <= 0) return showToast('에러', 'duration_sec 필요');
+  if (!user) return showToast('에러', 'user(닉네임) 필요');
 
-      const fd = new FormData();
-      fd.append('user', user);
-      fd.append('distance_km', String(distance_km));
-      fd.append('duration_sec', String(duration_sec));
-      fd.append('date_label', date_label);
-      if (track_id) fd.append('track_id', String(track_id));
-      if (photo) fd.append('photo', photo);
+  const dist = Number(distance_km);
+  if (!dist || dist <= 0) return showToast('에러', 'distance_km 필요');
 
-      try{
-        const res = await fetch('/api/runs', { method:'POST', body: fd });
-        const data = await res.json().catch(()=> ({}));
-        if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
-        showToast('저장됨', `pace: ${data.pace}`);
-        state.page = 'runs';
-        await refreshRuns();
-      }catch(e){
-        showToast('실패', String(e.message || '서버 오류').slice(0,80));
-      }
-    });
+  // pace "m:ss" -> seconds per km
+  const m = paceStr.match(/^(\d+)\s*:\s*([0-5]?\d)$/);
+  if (!m) return showToast('에러', 'pace 형식은 5:30 처럼 mm:ss');
+
+  const pace_sec = Number(m[1]) * 60 + Number(m[2]);
+  if (pace_sec <= 0) return showToast('에러', 'pace 필요');
+
+  const duration_sec = Math.round(dist * pace_sec);
+
+  const fd = new FormData();
+  fd.append('user', user);
+  fd.append('distance_km', String(dist));
+  fd.append('duration_sec', String(duration_sec));
+  fd.append('date_label', date_label);
+  if (track_id) fd.append('track_id', String(track_id));
+  if (photo) fd.append('photo', photo);
+
+  try{
+    const res = await fetch('/api/runs', { method:'POST', body: fd });
+    const data = await res.json().catch(()=> ({}));
+    if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
+    showToast('저장됨', `pace: ${data.pace}`);
+    state.page = 'runs';
+    await refreshRuns();
+  }catch(e){
+    showToast('실패', String(e.message || '서버 오류').slice(0,80));
   }
+});
+
 
   function renderSettings(){
     const nick = getNick();
