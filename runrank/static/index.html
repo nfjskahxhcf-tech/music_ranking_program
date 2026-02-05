@@ -126,11 +126,19 @@
 
 <script>
 (() => {
+  // ✅ Safari/PWA 캐시 강제 제거: 카톡 인앱 vs Safari가 다른 버전 보는 문제 해결
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    window.addEventListener('load', async () => {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) await r.unregister();
+      } catch (e) {}
+
+      // 일단 등록은 꺼둠 (캐시가 풀리면 필요할 때 다시 켜자)
+      // try { await navigator.serviceWorker.register('/service-worker.js'); } catch(e) {}
     });
   }
+
 
   const state = {
     page: 'menu',   // menu | tracks | ranking | hot | runs | run_new | settings | about | detail
