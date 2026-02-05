@@ -516,7 +516,28 @@
     if (photo) fd.append('photo', photo);
 
     try{
-      const res = await fetch('/api/runs', { method:'POST', body: fd });
+      const res = 
+  // --- v2: multi-track voting payload (send ALL tracks listened in this run) ---
+  // Try to collect selected/checked tracks from DOM in a flexible way.
+  const __trackIds = Array.from(
+    document.querySelectorAll(
+      // rows marked checked/selected
+      "[data-track-id].checked,[data-track-id][aria-checked='true'],[data-track-id][data-selected='1']," +
+      // checkbox inputs inside track rows
+      "[data-track-id] input[type=checkbox]:checked"
+    )
+  ).map(el => {
+    const row = el.dataset.trackId ? el : el.closest("[data-track-id]");
+    const v = row && row.dataset ? row.dataset.trackId : null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }).filter(n => n !== null);
+
+  // Backend accepts JSON array string or comma-separated string.
+  fd.append("track_ids", JSON.stringify(__trackIds));
+  // --- end v2 ---
+
+await fetch('/api/runs', { method:'POST', body: fd });
       const data = await res.json().catch(()=> ({}));
       if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
       showToast('저장됨', `pace: ${data.pace}`);
