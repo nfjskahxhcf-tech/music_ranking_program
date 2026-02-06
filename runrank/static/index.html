@@ -94,6 +94,15 @@
     input,select{width:100%;padding:10px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:var(--text);outline:none;}
     label{font-size:11px;color:var(--muted);}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+    .wheelBtn svg { fill: rgba(20,20,24,.65); }
+  .wheelBtn:active { transform: scale(.98); }
+
+  .wheel { touch-action: none; }
+
+  .wheel, .wheel * { user-select: none; -webkit-user-select: none; }
+
+
   </style>
 </head>
 <body>
@@ -116,9 +125,17 @@
       <div class="wheelWrap">
         <div class="wheel" aria-label="Clickwheel">
           <div class="wheelBtn top" id="btnMenu"><small>MENU</small></div>
-          <div class="wheelBtn left" id="btnPrev">⏮</div>
-          <div class="wheelBtn right" id="btnNext">⏭</div>
-          <div class="wheelBtn bottom" id="btnPlay">▶︎/⏸</div>
+          <div class="wheelBtn left" id="btnPrev" aria-label="Previous">
+  <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 5h2v14H6zM20 6v12l-10-6z"/></svg>
+</div>
+<div class="wheelBtn right" id="btnNext" aria-label="Next">
+  <svg viewBox="0 0 24 24" width="22" height="22"><path d="M16 5h2v14h-2zM4 6v12l10-6z"/></svg>
+</div>
+<div class="wheelBtn bottom" id="btnPlay" aria-label="Play/Pause">
+  <svg id="iconPlay" viewBox="0 0 24 24" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>
+  <svg id="iconPause" viewBox="0 0 24 24" width="22" height="22" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+</div>
+
           <div class="center" id="btnCenter">SELECT</div>
         </div>
       </div>
@@ -177,6 +194,8 @@
     btnPlay: document.getElementById('btnPlay'),
     btnCenter: document.getElementById('btnCenter'),
   };
+
+
 
   function fmtClock(d=new Date()){
     const hh = String(d.getHours()).padStart(2,'0');
@@ -861,76 +880,165 @@
     render();
   }
 
-  function select(){
-    if (state.page === 'menu'){
-      const key = MENU[(state.menuIndex % MENU.length + MENU.length) % MENU.length]?.key;
-      if (key === 'runs') { state.page = 'runs'; refreshRuns(); return; }
-      return goTo(key || 'tracks');
+  function attachClickWheelRotation() {
+  const wheel = document.querySelector('.wheel');
+  const center = document.getElementById('btnCenter');
+  if (!wheel || !center) return;
+
+   if (wheel.dataset.bound === '1') return;
+  wheel.dataset.bound = '1';
+
+  let dragging = false;
+  let lastAngle = 0;
+  let accum = 0;
+
+  const STEP_DEG = 22;
+
+  function angleFromEvent(ev) {
+    const r = wheel.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const x = ev.clientX - cx;
+    const y = ev.clientY - cy;
+    let a = Math.atan2(y, x) * 180 / Math.PI;
+    if (a < 0) a += 360;
+    return a;
+  }
+
+  function isOnOuterRing(ev) {
+    const r = wheel.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dx = ev.clientX - cx;
+    const dy = ev.clientY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const outer = r.width / 2;
+    const inner = outer * 0.33;
+    return dist <= outer && dist >= inner;
+  }
+
+  function rotateStep(dir) {
+    if (state.page === 'menu') {
+      state.menuIndex = (state.menuIndex + dir + MENU.length) % MENU.length;
+      render();
+      return;
     }
-    if (state.page === 'tracks'){
-      const list = state.tracks || [];
-      const t = list[(state.listIndex % list.length + list.length) % list.length];
-      if (!t) return;
-      state.selectedTrack = t;
-      state.page = 'detail';
-      return render();
-    }
-    if (state.page === 'runs'){
-      state.page = 'run_new';
-      return render();
+
+    const listLen = (
+      state.page === 'tracks' ? (state.tracks || []).length :
+      state.page === 'ranking' ? (state.ranking || []).length :
+      state.page === 'hot' ? (state.hot || []).length :
+      state.page === 'runs' ? (state.runs || []).length :
+      0
+    );
+
+    if (listLen > 0) {
+      state.listIndex = (state.listIndex + dir + listLen) % listLen;
+      render();
     }
   }
 
-  // ✅ 체크/해제: "런닝할 때 들은 곡"을 묶어서 Run 저장 시 한 번에 투표
-  function toggleCheck(){
-    let id = null;
-    if (state.page === 'tracks'){
-      const list = state.tracks || [];
-      const t = list[(state.listIndex % list.length + list.length) % list.length];
-      id = t?.id ?? t?.track_id ?? t?.trackId;
-    } else if (state.page === 'detail'){
-      id = state.selectedTrack?.id ?? state.selectedTrack?.track_id ?? state.selectedTrack?.trackId;
-    }
-    if (id == null) return;
-    id = Number(id);
-    if (state.checkedTrackIds.has(id)){
-      state.checkedTrackIds.delete(id);
-      showToast('해제', `선택곡 ${state.checkedTrackIds.size}개`);
-    } else {
-      state.checkedTrackIds.add(id);
-      showToast('체크', `선택곡 ${state.checkedTrackIds.size}개`);
-    }
-    render();
+  wheel.addEventListener('pointerdown', (ev) => {
+    if (ev.target === center || center.contains(ev.target)) return;
+    if (!isOnOuterRing(ev)) return;
+    dragging = true;
+    lastAngle = angleFromEvent(ev);
+    accum = 0;
+    wheel.setPointerCapture(ev.pointerId);
+  });
+
+  wheel.addEventListener('pointermove', (ev) => {
+    if (!dragging) return;
+    if (!isOnOuterRing(ev)) return;
+
+    const a = angleFromEvent(ev);
+    let delta = a - lastAngle;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+
+    lastAngle = a;
+    accum += delta;
+
+    while (accum >= STEP_DEG) { rotateStep(+1); accum -= STEP_DEG; }
+    while (accum <= -STEP_DEG) { rotateStep(-1); accum += STEP_DEG; }
+  });
+
+  wheel.addEventListener('pointerup', () => { dragging = false; });
+  wheel.addEventListener('pointercancel', () => { dragging = false; });
+}
+
+
+function select(){
+  if (state.page === 'menu'){
+    const key = MENU[(state.menuIndex % MENU.length + MENU.length) % MENU.length]?.key;
+    if (key === 'runs') { state.page = 'runs'; refreshRuns(); return; }
+    return goTo(key || 'tracks');
+  }
+  if (state.page === 'tracks'){
+    const list = state.tracks || [];
+    const t = list[(state.listIndex % list.length + list.length) % list.length];
+    if (!t) return;
+    state.selectedTrack = t;
+    state.page = 'detail';
+    return render();
+  }
+  if (state.page === 'runs'){
+    state.page = 'run_new';
+    return render();
+  }
+}
+
+
+// ✅ 체크/해제: "런닝할 때 들은 곡"을 묶어서 Run 저장 시 한 번에 투표
+function toggleCheck(){
+  let id = null;
+
+  if (state.page === 'tracks'){
+    const list = state.tracks || [];
+    const t = list[(state.listIndex % list.length + list.length) % list.length];
+    id = t?.id ?? t?.track_id ?? t?.trackId;
+  } else if (state.page === 'detail'){
+    id = state.selectedTrack?.id ?? state.selectedTrack?.track_id ?? state.selectedTrack?.trackId;
   }
 
-  function bind(){
-    el.btnMenu.addEventListener('click', goBack);
-    el.btnPrev.addEventListener('click', moveUp);
-    el.btnNext.addEventListener('click', moveDown);
-    el.btnCenter.addEventListener('click', select);
-    el.btnPlay.addEventListener('click', toggleCheck);
+  if (id == null) return;
+  id = Number(id);
 
-    window.addEventListener('keydown', (e) => {
-      const k = e.key;
-      if (k === 'ArrowUp') { e.preventDefault(); moveUp(); }
-      else if (k === 'ArrowDown') { e.preventDefault(); moveDown(); }
-      else if (k === 'Enter') { e.preventDefault(); select(); }
-      else if (k === 'Escape') { e.preventDefault(); goBack(); }
-      else if (k === ' ') { e.preventDefault(); toggleCheck(); }
-    });
+  if (state.checkedTrackIds.has(id)){
+    state.checkedTrackIds.delete(id);
+    showToast('해제', `선택곡 ${state.checkedTrackIds.size}개`);
+  } else {
+    state.checkedTrackIds.add(id);
+    showToast('체크', `선택곡 ${state.checkedTrackIds.size}개`);
+  }
 
-    window.addEventListener('online', () => { state.online = true; render(); });
-    window.addEventListener('offline', () => { state.online = false; render(); });
+  render();
+}
 
-    // ✅ Clickwheel rotate (touch/mouse): TannerV iPod 느낌으로 스크롤
-    // - 휠을 원형으로 문지르면 위/아래 이동
-    // - 너무 예민하지 않게 각도 누적 후 스텝 이동
-    const wheel = document.querySelector('.wheel');
-    if (wheel){
-      let tracking = false;
-      let lastAng = 0;
-      let acc = 0;
-      const STEP_DEG = 22; // 작게 하면 민감해짐
+
+function bind(){
+  el.btnMenu.addEventListener('click', goBack);
+  el.btnPrev.addEventListener('click', moveUp);
+  el.btnNext.addEventListener('click', moveDown);
+  el.btnCenter.addEventListener('click', select);
+  el.btnPlay.addEventListener('click', toggleCheck);
+
+  // ✅ rotate는 여기서 "호출"만 (중복 rotate 블록 금지)
+  attachClickWheelRotation();
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key;
+    if (k === 'ArrowUp') { e.preventDefault(); moveUp(); }
+    else if (k === 'ArrowDown') { e.preventDefault(); moveDown(); }
+    else if (k === 'Enter') { e.preventDefault(); select(); }
+    else if (k === 'Escape') { e.preventDefault(); goBack(); }
+    else if (k === ' ') { e.preventDefault(); toggleCheck(); }
+  });
+
+  window.addEventListener('online', () => { state.online = true; render(); });
+  window.addEventListener('offline', () => { state.online = false; render(); });
+}
+
 
       const getAngle = (clientX, clientY) => {
         const r = wheel.getBoundingClientRect();
