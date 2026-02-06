@@ -144,18 +144,35 @@
 
 <script>
 (() => {
-  // ✅ Safari/PWA 캐시 강제 제거: 카톡 인앱 vs Safari가 다른 버전 보는 문제 해결
+  // ✅ Service Worker: 정상 등록 + 업데이트 체크
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (const r of regs) await r.unregister();
+        const reg = await navigator.serviceWorker.register('/service-worker.js');
+        // 새 버전 있으면 체크
+        try { await reg.update(); } catch (e) {}
       } catch (e) {}
-
-      // 일단 등록은 꺼둠 (캐시가 풀리면 필요할 때 다시 켜자)
-      // try { await navigator.serviceWorker.register('/service-worker.js'); } catch(e) {}
     });
   }
+
+  const state = {
+    // ...
+
+
+  async function checkOnline() {
+  try {
+    const r = await fetch(`/api/health?ts=${Date.now()}`, { cache: 'no-store' });
+    state.online = r.ok;
+  } catch {
+    state.online = false;
+  }
+  render();
+}
+
+function startOnlineMonitor(){
+  checkOnline();                 // 즉시 1번
+  setInterval(checkOnline, 15000); // 15초마다 체크
+}
 
 
   const state = {
@@ -169,7 +186,8 @@
     selectedTrack: null,
     // ✅ 한 런에서 들은 곡들(체크)
     checkedTrackIds: new Set(),
-    online: navigator.onLine,
+    online: true, // iOS에서 navigator.onLine 믿지 말자
+
   };
 
   const MENU = [
@@ -1035,8 +1053,9 @@ function bind(){
     else if (k === ' ') { e.preventDefault(); toggleCheck(); }
   });
 
-  window.addEventListener('online', () => { state.online = true; render(); });
-  window.addEventListener('offline', () => { state.online = false; render(); });
+  window.addEventListener('online', checkOnline);
+  window.addEventListener('offline', checkOnline);
+
 }
 
 
