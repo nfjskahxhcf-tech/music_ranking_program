@@ -184,6 +184,7 @@ async function checkOnline() {
 }
 
 function startOnlineMonitor(){
+  window.addEventListener('load', startOnlineMonitor);
   checkOnline();                    // 즉시 1번
   setInterval(checkOnline, 15000);  // 15초마다 체크
 }
