@@ -17,377 +17,440 @@
       --screen:#0f1620;
       --screen2:#121b27;
       --text:#eaf0ff;
-      --muted:#9db0d1;
-      --accent:#7bdcff;
-      --line: rgba(255,255,255,.12);
-      --danger:#ff6b6b;
-      --ok:#6bffb0;
-      --radius: 26px;
-      --screenRadius: 12px;
-      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", Helvetica, Arial, sans-serif;
+      --muted:#9db0d6;
+      --accent:#62a7ff;
+      --accent2:#8a5cff;
+      --good:#4ade80;
+      --bad:#fb7185;
+      --ring: rgba(98,167,255,.35);
     }
-    html,body{height:100%; margin:0; background: radial-gradient(1200px 800px at 70% 20%, #1a2b3a 0%, var(--bg) 55%, #06060a 100%); color:var(--text); font-family:var(--font);}
-    *{box-sizing:border-box;}
-    a{color:inherit}
-
-    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:26px 18px;}
-    .ipod{width:min(360px, 92vw);aspect-ratio:9/14;border-radius:36px;background:linear-gradient(180deg,var(--device) 0%,var(--device2) 100%);box-shadow:0 24px 70px var(--shadow);padding:18px 16px 20px;position:relative;}
-    .ipod:before{content:"";position:absolute;inset:10px 10px auto 10px;height:20px;border-radius:16px;background:rgba(255,255,255,.35);filter:blur(.2px);}
-
-    .screen{height:40%;border-radius:var(--screenRadius);background:linear-gradient(180deg,var(--screen2),var(--screen));border:1px solid rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);padding:10px 10px 12px;overflow:hidden;position:relative;}
-    .status{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);letter-spacing:.2px;padding:2px 2px 6px;}
-    .status .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.09);color:var(--muted);}
-
-    .view{height:calc(100% - 26px);display:flex;flex-direction:column;gap:8px;}
-    .titleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px;}
-    .titleRow h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.4px;}
-    .titleRow .hint{font-size:11px;color:var(--muted);}
-
-    .list{flex:1;overflow:auto;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);padding:6px;}
-    .item{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:10px;cursor:default;user-select:none;}
-    .item + .item{margin-top:6px;}
-    .item .thumb{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);overflow:hidden;flex:0 0 auto;display:grid;place-items:center;color:rgba(255,255,255,.55);font-size:12px;}
-    .item .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-    .item .meta{min-width:0;}
-    .item .meta .name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
-    .item .meta .sub{margin-top:2px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
-    .item .right{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
-    .item.active{background:rgba(123,220,255,.16);border:1px solid rgba(123,220,255,.30);}
-    .item.active .right{color:var(--text);}
-
-    .detail{
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", Arial;
+      background: radial-gradient(900px 600px at 50% 20%, #1a2740 0%, #0b0b0f 60%);
+      color: var(--text);
       display:flex;
-      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items:start;
+      justify-items:center;
+    }
+    .topbar{
+      width:min(980px, 100%);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      opacity:.95;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:50%;
+      background: var(--good);
+      box-shadow:0 0 0 5px rgba(74,222,128,.15);
+    }
+    .pill{
+      border:1px solid rgba(255,255,255,.12);
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      color: var(--muted);
+      background: rgba(0,0,0,.25);
+      backdrop-filter: blur(6px);
+      display:flex; align-items:center; gap:8px;
+    }
+    .pill b{ color: var(--text); font-weight:600; }
+    .device{
+      width:min(430px, 100%);
+      aspect-ratio: 9 / 16;
+      background: linear-gradient(180deg, var(--device) 0%, var(--device2) 100%);
+      border-radius: 42px;
+      box-shadow:
+        0 40px 80px var(--shadow),
+        0 6px 0 rgba(255,255,255,.55) inset,
+        0 -10px 20px rgba(0,0,0,.10) inset;
+      padding: 18px;
+      position:relative;
+      overflow:hidden;
+    }
+    .device::before{
+      content:"";
+      position:absolute;
+      inset:-120px -160px auto auto;
+      width:360px; height:360px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.65), rgba(255,255,255,0) 60%);
+      transform: rotate(10deg);
+      opacity:.4;
+      pointer-events:none;
+    }
+    .speaker{
+      position:absolute; top:14px; left:50%;
+      transform:translateX(-50%);
+      width: 110px; height: 8px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.18);
+      box-shadow: 0 2px 0 rgba(255,255,255,.4) inset;
+    }
+    .screen{
+      width:100%;
+      height: 48%;
+      background: linear-gradient(180deg, var(--screen) 0%, var(--screen2) 100%);
+      border-radius: 26px;
+      box-shadow:
+        0 10px 30px rgba(0,0,0,.25),
+        0 0 0 1px rgba(255,255,255,.10) inset;
+      padding: 14px;
+      overflow:hidden;
+      position:relative;
+    }
+    .screen::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background: radial-gradient(800px 300px at 50% -40%, rgba(98,167,255,.25), rgba(0,0,0,0) 55%);
+      pointer-events:none;
+    }
+    .titleRow{
+      display:flex; align-items:center; justify-content:space-between;
       gap:10px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.04);
-      padding:10px;
-      height:100%;
+      margin-bottom: 10px;
+      position:relative;
+      z-index:1;
+    }
+    .titleRow h1{
+      margin:0;
+      font-size: 16px;
+      letter-spacing:.2px;
+      font-weight:800;
+    }
+    .hint{
+      font-size:12px;
+      color: var(--muted);
+      border:1px solid rgba(255,255,255,.10);
+      padding:4px 8px;
+      border-radius:999px;
+      background: rgba(0,0,0,.18);
+    }
+    .list{
+      position:relative;
+      z-index:1;
+      border-radius: 16px;
       overflow:auto;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      padding-bottom: 22px;
+      max-height: calc(100% - 34px);
+      padding: 6px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.09);
+    }
+    .item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      color: var(--text);
+      cursor: default;
+      user-select:none;
+    }
+    .item + .item{ margin-top: 6px; }
+    .item .meta{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .item .name{ font-weight:700; font-size: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item .sub{ font-size: 12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item .right{ color: rgba(255,255,255,.55); font-weight:900; }
+    .item.active{
+      background: linear-gradient(135deg, rgba(98,167,255,.35), rgba(138,92,255,.25));
+      box-shadow: 0 0 0 2px var(--ring) inset, 0 10px 22px rgba(0,0,0,.25);
+    }
+    .thumb{
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden;
+      flex: 0 0 auto;
+    }
+    .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .kbd{
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      position:relative;
+      z-index:1;
+      line-height: 1.5;
+    }
+    .kbd code{
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
+      padding: 2px 6px;
+      border-radius: 8px;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      margin: 0 2px;
+    }
+    .wheel{
+      width:100%;
+      height: calc(52% - 18px);
+      margin-top: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.30));
+      border-radius: 28px;
+      box-shadow:
+        0 10px 28px rgba(0,0,0,.22),
+        0 0 0 1px rgba(255,255,255,.65) inset,
+        0 -12px 20px rgba(0,0,0,.08) inset;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      touch-action: none;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-touch-callout:none;
+    }
+    .ring{
+      width: 76%;
+      height: 76%;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, rgba(0,0,0,.06), rgba(0,0,0,0) 60%);
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,.15) inset,
+        0 6px 16px rgba(0,0,0,.12) inset;
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .center{
+      width: 46%;
+      height: 46%;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.55));
+      box-shadow:
+        0 8px 22px rgba(0,0,0,.16),
+        0 0 0 1px rgba(0,0,0,.12) inset;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      color:#111;
+      letter-spacing:.6px;
+      cursor:pointer;
+      transition: transform .08s ease;
+    }
+    .center:active{ transform: scale(.98); }
+    .btn{
+      position:absolute;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing:.4px;
+      color: rgba(0,0,0,.72);
+      text-transform: uppercase;
+      pointer-events:none;
+    }
+    .btn.menu{ top: 12px; }
+    .btn.play{ right: 12px; }
+    .btn.back{ left: 12px; }
+    .btn.next{ bottom: 12px; }
+    .tapHint{
+      position:absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: rgba(0,0,0,.55);
+      pointer-events:none;
     }
 
-    .wheelWrap{height:60%;display:flex;align-items:center;justify-content:center;padding-top:14px;}
-    .wheel{width:82%;aspect-ratio:1/1;border-radius:999px;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.65),rgba(255,255,255,.22) 35%,rgba(0,0,0,.05) 66%,rgba(0,0,0,.10) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 10px 28px rgba(0,0,0,.16);position:relative;user-select:none;touch-action:none;}
-    .wheel .center{position:absolute;inset:30%;border-radius:999px;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.85),rgba(255,255,255,.20) 60%,rgba(0,0,0,.06) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);display:grid;place-items:center;font-weight:900;color:rgba(20,20,24,.65);cursor:pointer;}
-    .wheelBtn{position:absolute;display:grid;place-items:center;width:36%;height:20%;font-size:12px;font-weight:900;color:rgba(20,20,24,.65);cursor:pointer;}
-    .wheelBtn.top{top:4%;left:32%;}
-    .wheelBtn.bottom{bottom:4%;left:32%;}
-    .wheelBtn.left{left:4%;top:40%;}
-    .wheelBtn.right{right:4%;top:40%;}
-    .wheelBtn small{font-size:10px;letter-spacing:.6px;}
-    .wheelBtn svg { fill: rgba(20,20,24,.65); }
-    .wheelBtn:active { transform: scale(.98); }
+    /* detail view */
+    .detail{
+      position:relative;
+      z-index:1;
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.09);
+      overflow:auto;
+      max-height: calc(100% - 34px);
+    }
+    .detail h2{ margin: 4px 0 6px; font-size: 15px; }
+    .detail p{ margin: 6px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .detail .row{ display:flex; gap:10px; align-items:center; }
+    .detail .cover{
+      width: 64px; height: 64px; border-radius: 14px;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      overflow:hidden;
+      flex:0 0 auto;
+      display:flex; align-items:center; justify-content:center;
+      font-weight: 900;
+    }
+    .detail .cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .chipRow{ display:flex; flex-wrap:wrap; gap:6px; margin-top: 10px; }
+    .chip{
+      border:1px solid rgba(255,255,255,.10);
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(0,0,0,.20);
+    }
+    .chip b{ color: var(--text); font-weight:700; }
 
-    .toast{position:absolute;left:10px;right:10px;bottom:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);color:var(--text);font-size:12px;display:none;backdrop-filter:blur(8px);}
-    .toast.show{display:block;}
-    .toast .sub{color:rgba(255,255,255,.75);margin-top:3px;font-size:11px;}
-
-    .kbd{font-size:11px;color:var(--muted);padding:0 2px;}
-    .kbd code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);padding:2px 6px;border-radius:8px;color:var(--text);}
-
-    input,select{width:100%;padding:10px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25);color:var(--text);outline:none;}
-    label{font-size:11px;color:var(--muted);}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-
-    .btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:var(--text);padding:10px 10px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
-    .btn.primary{background:rgba(123,220,255,.18);border-color:rgba(123,220,255,.32);}
-    .cta{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    @media (min-width: 820px){
+      .wrap{ grid-template-columns: 1fr 1fr; }
+      .device{ justify-self:end; }
+      .topbar{ grid-column: 1 / -1; }
+    }
   </style>
 </head>
+
 <body>
   <div class="wrap">
-    <div class="ipod">
-      <div class="screen">
-        <div class="status">
-          <div class="pill" id="pillState">OFFLINE</div>
-          <div id="clock">--:--</div>
-        </div>
+    <div class="topbar">
+      <div class="brand">
+        <span class="dot" id="dot"></span>
+        <span>RunRank</span>
+      </div>
+      <div class="pill"><b id="pill">OFFLINE</b><span>· PWA</span></div>
+    </div>
 
-        <div class="view" id="view"></div>
-
-        <div class="toast" id="toast">
-          <div id="toastTitle">알림</div>
-          <div class="sub" id="toastSub"></div>
-        </div>
+    <div class="device" id="device">
+      <div class="speaker"></div>
+      <div class="screen" id="screen">
+        <div id="view"></div>
       </div>
 
-      <div class="wheelWrap">
-        <div class="wheel" aria-label="Clickwheel">
-          <div class="wheelBtn top" id="btnMenu"><small>MENU</small></div>
-          <div class="wheelBtn left" id="btnPrev" aria-label="Previous">
-            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 5h2v14H6zM20 6v12l-10-6z"/></svg>
-          </div>
-          <div class="wheelBtn right" id="btnNext" aria-label="Next">
-            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M16 5h2v14h-2zM4 6v12l10-6z"/></svg>
-          </div>
-          <div class="wheelBtn bottom" id="btnPlay" aria-label="Play/Pause">
-            <svg id="iconPlay" viewBox="0 0 24 24" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>
-          </div>
-          <div class="center" id="btnCenter">SELECT</div>
+      <div class="wheel" id="wheel">
+        <div class="ring">
+          <div class="btn menu">MENU</div>
+          <div class="btn back">BACK</div>
+          <div class="btn play">PLAY</div>
+          <div class="btn next">NEXT</div>
+          <div class="center" id="center">OK</div>
+          <div class="tapHint">휠: 드래그 / 마우스휠 / 터치</div>
         </div>
+      </div>
+    </div>
+
+    <div style="width:min(430px, 100%); opacity:.9; color:var(--muted); font-size:12px; line-height:1.55">
+      <div style="font-weight:800; color:var(--text); margin-bottom:6px;">사용법</div>
+      <div>· 휠 회전: 메뉴/리스트 이동</div>
+      <div>· OK(센터): 선택 / 상세 / 저장</div>
+      <div>· MENU: 메인 메뉴로</div>
+      <div>· BACK: 이전 화면</div>
+      <div style="margin-top:10px;">
+        서버 API: <code style="background:rgba(0,0,0,.25); padding:2px 6px; border-radius:8px; border:1px solid rgba(255,255,255,.10); color:var(--text)">/api/*</code>
       </div>
     </div>
   </div>
 
-<script>
-(() => {
-  // Service Worker
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      try {
-        const reg = await navigator.serviceWorker.register('/service-worker.js');
-        try { await reg.update(); } catch (e) {}
-      } catch (e) {}
-    });
-  }
+  <script>
+  // ===== PWA / SW =====
+  (function(){
+    const dot = document.getElementById('dot');
+    const pill = document.getElementById('pill');
+
+    function setOnline(yes){
+      dot.style.background = yes ? 'var(--good)' : 'var(--bad)';
+      dot.style.boxShadow = yes ? '0 0 0 5px rgba(74,222,128,.15)' : '0 0 0 5px rgba(251,113,133,.15)';
+      pill.textContent = yes ? 'ONLINE' : 'OFFLINE';
+    }
+    setOnline(navigator.onLine);
+    window.addEventListener('online', ()=>setOnline(true));
+    window.addEventListener('offline', ()=>setOnline(false));
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+      });
+    }
+  })();
+
+  // ===== App State =====
+  const el = {
+    view: document.getElementById('view'),
+    wheel: document.getElementById('wheel'),
+    center: document.getElementById('center'),
+    device: document.getElementById('device'),
+    pill: document.getElementById('pill'),
+  };
+
+  const MENU = [
+    { key:'tracks',  label:'Tracks',  hint:'노래 리스트' },
+    { key:'ranking', label:'Ranking', hint:'투표 랭킹' },
+    { key:'hot',     label:'Hot',     hint:'최근 트렌드' },
+    { key:'runs',    label:'Runs',    hint:'런닝 기록' },
+    { key:'settings',label:'Settings',hint:'설정' },
+    { key:'about',   label:'About',   hint:'정보' },
+  ];
 
   const state = {
+    online: navigator.onLine,
     page: 'menu',
     menuIndex: 0,
     listIndex: 0,
+    detailItem: null, // {type, data}
     tracks: [],
     ranking: [],
     hot: [],
     runs: [],
-    selectedTrack: null,
     checkedTrackIds: new Set(),
-    online: true,
   };
 
-  const MENU = [
-    { key: 'tracks',   label: 'Tracks',   hint: '곡 목록 / 추천' },
-    { key: 'ranking',  label: 'Ranking',  hint: '전체 랭킹' },
-    { key: 'hot',      label: 'Hot',      hint: '최근 인기' },
-    { key: 'runs',     label: 'Runs',     hint: '런닝 기록 + 사진' },
-    { key: 'settings', label: 'Settings', hint: '닉네임 / 옵션' },
-    { key: 'about',    label: 'About',    hint: '앱 정보' },
-  ];
-
-  const el = {
-    view: document.getElementById('view'),
-    toast: document.getElementById('toast'),
-    toastTitle: document.getElementById('toastTitle'),
-    toastSub: document.getElementById('toastSub'),
-    pill: document.getElementById('pillState'),
-    clock: document.getElementById('clock'),
-    btnMenu: document.getElementById('btnMenu'),
-    btnPrev: document.getElementById('btnPrev'),
-    btnNext: document.getElementById('btnNext'),
-    btnPlay: document.getElementById('btnPlay'),
-    btnCenter: document.getElementById('btnCenter'),
-  };
-
-  function fmtClock(d = new Date()) {
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
+  function safeText(s){
+    return String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   }
 
-  function showToast(title, sub = '') {
-    el.toastTitle.textContent = title;
-    el.toastSub.textContent = sub;
-    el.toast.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => el.toast.classList.remove('show'), 1800);
-  }
-
-  function safeText(s) { return (s ?? '').toString(); }
-
-  function escapeHtml(s) {
-    return String(s ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
-  function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
-
-  function getNick() { return localStorage.getItem('runrank_nick') || ''; }
-  function setNick(v) { localStorage.setItem('runrank_nick', v); }
-
-  // Online check
-  let onlineFailStreak = 0;
-  async function checkOnline() {
-    try {
-      const r = await fetch(`/api/health?ts=${Date.now()}`, { cache: 'no-store', credentials: 'same-origin' });
-      if (r.ok) { onlineFailStreak = 0; state.online = true; }
-      else { onlineFailStreak += 1; if (onlineFailStreak >= 2) state.online = false; }
-    } catch {
-      onlineFailStreak += 1; if (onlineFailStreak >= 2) state.online = false;
-    }
-    render();
-  }
-  function startOnlineMonitor() { checkOnline(); setInterval(checkOnline, 15000); }
-
-  // Spotify (PKCE) - 최소 뼈대
-  function getSpotifyClientId() { return localStorage.getItem('runrank_spotify_client_id') || ''; }
-  function setSpotifyClientId(v) { localStorage.setItem('runrank_spotify_client_id', v); }
-  function getSpotifyToken() { return localStorage.getItem('runrank_spotify_access_token') || ''; }
-  function setSpotifyToken(v) { localStorage.setItem('runrank_spotify_access_token', v); }
-
-  async function sha256(str) {
-    const enc = new TextEncoder();
-    const data = enc.encode(str);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    return new Uint8Array(hash);
-  }
-  function base64url(bytes) {
-    let str = '';
-    bytes.forEach(b => str += String.fromCharCode(b));
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
-  }
-  function randString(len = 64) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-    let out = '';
-    const arr = crypto.getRandomValues(new Uint8Array(len));
-    for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
-    return out;
-  }
-
-  async function spotifyLogin() {
-    const clientId = getSpotifyClientId().trim();
-    if (!clientId) return showToast('Spotify', 'Settings에 Client ID부터 넣어');
-
-    const verifier = randString(64);
-    const challenge = base64url(await sha256(verifier));
-    const stateStr = randString(16);
-    localStorage.setItem('runrank_spotify_verifier', verifier);
-    localStorage.setItem('runrank_spotify_oauth_state', stateStr);
-
-    const redirectUri = window.location.origin + '/';
-    const scope = ['user-read-email','user-read-private','playlist-read-private','playlist-read-collaborative'].join(' ');
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      response_type: 'code',
-      redirect_uri: redirectUri,
-      code_challenge_method: 'S256',
-      code_challenge: challenge,
-      state: stateStr,
-      scope,
-    });
-    window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
-  }
-
-  async function handleSpotifyCallback() {
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get('code');
-    const stateStr = url.searchParams.get('state');
-    const err = url.searchParams.get('error');
-
-    if (err) {
-      showToast('Spotify 실패', err);
-      url.searchParams.delete('error');
-      window.history.replaceState({}, '', url.toString());
-      return;
-    }
-    if (!code) return;
-
-    const expectedState = localStorage.getItem('runrank_spotify_oauth_state') || '';
-    const verifier = localStorage.getItem('runrank_spotify_verifier') || '';
-    const clientId = getSpotifyClientId().trim();
-    const redirectUri = window.location.origin + '/';
-
-    if (!clientId || !verifier || !expectedState || expectedState !== stateStr) {
-      showToast('Spotify', 'state/verifier 불일치');
-      return;
-    }
-
-    try {
-      const body = new URLSearchParams({
-        client_id: clientId,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: redirectUri,
-        code_verifier: verifier,
-      });
-
-      const res = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error_description || data?.error || String(res.status));
-      if (data?.access_token) { setSpotifyToken(data.access_token); showToast('Spotify', '연동 완료'); }
-    } catch (e) {
-      showToast('Spotify 실패', String(e.message || e).slice(0, 80));
-    } finally {
-      url.searchParams.delete('code'); url.searchParams.delete('state');
-      window.history.replaceState({}, '', url.toString());
-    }
-  }
-
-  function pickCoverUrl(x) { return x?.cover_url || x?.album_art || x?.image_url || ''; }
-
-  async function apiGet(path) {
-    const res = await fetch(path, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
-  }
-
-  async function refreshAll() {
-    try {
-      const [tracks, ranking, hot] = await Promise.all([
-        apiGet('/api/tracks'),
-        apiGet('/api/ranking'),
-        apiGet('/api/hot_ranking'),
-      ]);
-      state.tracks = Array.isArray(tracks) ? tracks : (tracks?.tracks || []);
-      state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
-      state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
-      state.online = true;
-      render();
-    } catch (e) {
-      showToast('오프라인', '네트워크를 확인해줘');
-      state.online = false;
-      render();
-    }
-  }
-
-  async function refreshRuns() {
-    try {
-      const nick = getNick();
-      const qs = nick ? `?user=${encodeURIComponent(nick)}` : '';
-      const runs = await apiGet('/api/runs' + qs);
-      state.runs = Array.isArray(runs) ? runs : [];
-      render();
-    } catch (e) {
-      showToast('Runs 실패', '서버 응답이 이상해');
-    }
-  }
-
-  async function submit(trackId) {
-    try {
-      const body = { track_id: Number(trackId), user: getNick() || null };
-      const res = await fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
-      showToast('추천 완료', '랭킹에 반영됐어');
-
-      const [ranking, hot] = await Promise.all([
-        apiGet('/api/ranking'),
-        apiGet('/api/hot_ranking'),
-      ]);
-      state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
-      state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
-      render();
-    } catch (e) {
-      showToast('실패', String(e.message || '서버 오류').slice(0, 80));
-    }
-  }
-
-  function clampIndex(i, n) { if (n <= 0) return 0; return (i % n + n) % n; }
+  function clampIndex(i, n) { if (n <= 0) return 0; return Math.max(0, Math.min(n - 1, i)); }
+  function modIndex(i, n) { if (n <= 0) return 0; return (i % n + n) % n; }
 
   function renderHeader(title, hint) {
     return `<div class="titleRow"><h1>${title}</h1><div class="hint">${hint || ''}</div></div>`;
+  }
+
+
+  function ensureActiveInView() {
+    const list = el.view.querySelector('.list');
+    const active = el.view.querySelector('.item.active');
+    if (!list || !active) return;
+
+    const pad = 6;
+    const aTop = active.offsetTop;
+    const aBottom = aTop + active.offsetHeight;
+
+    const lTop = list.scrollTop;
+    const lBottom = lTop + list.clientHeight;
+
+    if (aTop < lTop + pad) {
+      list.scrollTop = Math.max(0, aTop - pad);
+    } else if (aBottom > lBottom - pad) {
+      list.scrollTop = aBottom - list.clientHeight + pad;
+    }
+  }
+
+
+  function pickCoverUrl(obj){
+    if(!obj) return '';
+    const c = obj.cover_url || obj.cover || obj.image || obj.album_cover || obj.artwork || obj.artwork_url || '';
+    if (typeof c === 'string') return c;
+    if (c && typeof c === 'object') {
+      return c.url || c.small || c.medium || c.large || '';
+    }
+    return '';
   }
 
   function normalizeRankingItem(x) {
@@ -437,6 +500,7 @@
       <div class="list">${items}</div>
       <div class="kbd">조작: <code>↑</code><code>↓</code> 이동 · <code>Enter</code> 선택 · <code>Esc</code> 뒤로 · <code>Space</code> 체크</div>
     `;
+    requestAnimationFrame(ensureActiveInView);
   }
 
   function renderTracks() {
@@ -450,73 +514,94 @@
       const checked = state.checkedTrackIds.has(Number(t.id));
       return `
         <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${cover ? `<img alt="" src="${cover}">` : '♪'}</div>
-          <div class="meta"><div class="name">${escapeHtml(name)}</div><div class="sub">${escapeHtml(artist || ' ')}</div></div>
-          <div class="right">${checked ? '✓' : '+'}</div>
+          <div class="thumb">${cover
+            ? `<img src="${cover}" alt="">`
+            : '♪'
+          }</div>
+          <div class="meta">
+            <div class="name">${name}</div>
+            <div class="sub">${artist}</div>
+          </div>
+          <div class="right">${checked ? '✓' : '›'}</div>
         </div>
       `;
     }).join('');
 
     el.view.innerHTML = `
       ${renderHeader('Tracks', 'Space=체크')}
-      <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">/api/tracks 확인</div></div></div>'}</div>
-      <div class="kbd"><code>Enter</code> 상세 · <code>Space</code> 체크/해제 · <code>Esc</code> 메뉴</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">tracks.json 확인</div></div><div class="right"></div></div>'}</div>
+      <div class="kbd">휠/↑↓ 이동 · <code>Space</code> 체크 · <code>Enter</code> 상세 · <code>Esc</code> 뒤로</div>
     `;
+    requestAnimationFrame(ensureActiveInView);
   }
 
   function renderRanking() {
-    const list = (state.ranking || []).map(normalizeRankingItem);
+    const list = state.ranking || [];
     state.listIndex = clampIndex(state.listIndex, list.length);
 
-    const items = list.map((r, idx) => `
-      <div class="item ${idx === state.listIndex ? 'active' : ''}">
-        <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : String(idx + 1)}</div>
-        <div class="meta"><div class="name">${escapeHtml(r.title || '—')}</div><div class="sub">${escapeHtml(r.artist || ' ')}</div></div>
-        <div class="right">${escapeHtml(String(r.score))}</div>
-      </div>
-    `).join('');
+    const items = list.map((x, idx) => {
+      const it = normalizeRankingItem(x);
+      return `
+        <div class="item ${idx === state.listIndex ? 'active' : ''}">
+          <div class="thumb">${it.cover_url ? `<img src="${it.cover_url}" alt="">` : '★'}</div>
+          <div class="meta">
+            <div class="name">${it.title || '(제목 없음)'}</div>
+            <div class="sub">${it.artist ? `${it.artist}` : ''}${it.score !== '' ? ` · ${it.score}` : ''}</div>
+          </div>
+          <div class="right">›</div>
+        </div>
+      `;
+    }).join('');
 
     el.view.innerHTML = `
       ${renderHeader('Ranking', '전체')}
-      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">추천을 먼저 해봐</div></div></div>'}</div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">아직 투표가 없어</div></div><div class="right"></div></div>'}</div>
+      <div class="kbd">휠/↑↓ 이동 · <code>Enter</code> 상세 · <code>Esc</code> 뒤로</div>
     `;
+    requestAnimationFrame(ensureActiveInView);
   }
 
   function renderHot() {
-    const list = (state.hot || []).map(normalizeRankingItem);
+    const list = state.hot || [];
     state.listIndex = clampIndex(state.listIndex, list.length);
 
-    const items = list.map((r, idx) => `
-      <div class="item ${idx === state.listIndex ? 'active' : ''}">
-        <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : '🔥'}</div>
-        <div class="meta"><div class="name">${escapeHtml(r.title || '—')}</div><div class="sub">${escapeHtml(r.artist || ' ')}</div></div>
-        <div class="right">${escapeHtml(String(r.score))}</div>
-      </div>
-    `).join('');
+    const items = list.map((x, idx) => {
+      const it = normalizeRankingItem(x);
+      return `
+        <div class="item ${idx === state.listIndex ? 'active' : ''}">
+          <div class="thumb">${it.cover_url ? `<img src="${it.cover_url}" alt="">` : '🔥'}</div>
+          <div class="meta">
+            <div class="name">${it.title || '(제목 없음)'}</div>
+            <div class="sub">${it.artist ? `${it.artist}` : ''}${it.score !== '' ? ` · ${it.score}` : ''}</div>
+          </div>
+          <div class="right">›</div>
+        </div>
+      `;
+    }).join('');
 
     el.view.innerHTML = `
       ${renderHeader('Hot', '최근')}
-      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 추천이 없어</div></div></div>'}</div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 데이터가 없어</div></div><div class="right"></div></div>'}</div>
+      <div class="kbd">휠/↑↓ 이동 · <code>Enter</code> 상세 · <code>Esc</code> 뒤로</div>
     `;
+    requestAnimationFrame(ensureActiveInView);
   }
 
   function renderRuns() {
-    const runs = state.runs || [];
-    state.listIndex = clampIndex(state.listIndex, runs.length);
+    const list = state.runs || [];
+    state.listIndex = clampIndex(state.listIndex, list.length);
 
-    const items = runs.map((r, idx) => {
-      const tracks = Array.isArray(r.tracks) ? r.tracks : [];
-      const t0 = tracks[0] || r.track;
-      const cover = pickCoverUrl(r.photo_url ? { cover_url: r.photo_url } : t0);
-      const baseTitle = t0 ? `${t0.title}` : '—';
-      const title = tracks.length > 1 ? `${baseTitle} (+${tracks.length - 1})` : baseTitle;
-      const sub = `${r.date_label} · ${r.distance_km}km · ${fmtDur(r.duration_sec)} · ${r.pace}`;
+    const items = list.map((r, idx) => {
+      const dt = safeText(r.date || r.created_at || '');
+      const dist = (r.distance_km ?? r.distance ?? '');
+      const dur = r.duration_sec ? fmtDur(r.duration_sec) : safeText(r.duration || r.time || '');
       return `
         <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${r.photo_url ? `<img alt="" src="${r.photo_url}">` : (cover ? `<img alt="" src="${cover}">` : '🏃')}</div>
-          <div class="meta"><div class="name">${escapeHtml(title)}</div><div class="sub">${escapeHtml(sub)}</div></div>
+          <div class="thumb">🏃</div>
+          <div class="meta">
+            <div class="name">${dt || 'Run'}</div>
+            <div class="sub">${dist ? `${dist}km` : ''}${dur ? ` · ${dur}` : ''}</div>
+          </div>
           <div class="right">›</div>
         </div>
       `;
@@ -524,281 +609,401 @@
 
     el.view.innerHTML = `
       ${renderHeader('Runs', '센터=새 기록')}
-      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">센터(SELECT)로 첫 기록 추가</div></div></div>'}</div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">센터 버튼으로 추가</div></div><div class="right"></div></div>'}</div>
+      <div class="kbd">휠/↑↓ 이동 · <code>Enter</code> 상세 · <code>OK</code> 추가 · <code>Esc</code> 뒤로</div>
     `;
+    requestAnimationFrame(ensureActiveInView);
   }
 
   function renderSettings() {
-    const nick = getNick();
-    const spClientId = getSpotifyClientId();
-    const spConnected = !!getSpotifyToken();
-
     el.view.innerHTML = `
-      ${renderHeader('Settings', '닉네임')}
+      ${renderHeader('Settings', '간단')}
       <div class="detail">
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input id="nickInput" value="${escapeAttr(nick)}" placeholder="예) joon" style="flex:1;">
-          <button class="btn primary" id="saveNick">저장</button>
-        </div>
-
-        <div class="cta">
-          <button class="btn" id="refreshBtn">새로고침</button>
-          <button class="btn" id="loadRuns">내 Runs</button>
-        </div>
-
-        <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.10);"></div>
-
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input id="spClientId" value="${escapeAttr(spClientId)}" placeholder="Spotify Client ID" style="flex:1;" />
-          <button class="btn primary" id="spSave">저장</button>
-        </div>
-
-        <div class="cta">
-          <button class="btn ${spConnected ? 'primary' : ''}" id="spConnect">${spConnected ? '연동됨(다시)' : 'Spotify 연동'}</button>
-          <button class="btn" id="spDisconnect">연동 해제</button>
+        <h2>설정</h2>
+        <p>· Space: Tracks에서 체크/해제</p>
+        <p>· OK: 선택/상세/추가</p>
+        <p>· Menu: 메인 메뉴</p>
+        <p>· Back: 이전 화면</p>
+        <div class="chipRow">
+          <div class="chip"><b>체크</b>는 로컬 상태</div>
+          <div class="chip"><b>PWA</b> 오프라인 캐시</div>
         </div>
       </div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
+      <div class="kbd">휠은 여기서 스크롤 없음</div>
     `;
-
-    document.getElementById('saveNick').addEventListener('click', () => {
-      const v = document.getElementById('nickInput').value.trim();
-      setNick(v);
-      showToast('저장됨', v ? `닉네임: ${v}` : '비워뒀어');
-      render();
-    });
-
-    document.getElementById('refreshBtn').addEventListener('click', async () => {
-      showToast('갱신', '데이터 불러오는 중…');
-      await refreshAll();
-    });
-
-    document.getElementById('loadRuns').addEventListener('click', async () => {
-      state.page = 'runs';
-      await refreshRuns();
-    });
-
-    document.getElementById('spSave').addEventListener('click', () => {
-      setSpotifyClientId(document.getElementById('spClientId').value.trim());
-      showToast('Spotify', 'Client ID 저장됨');
-    });
-    document.getElementById('spConnect').addEventListener('click', () => spotifyLogin());
-    document.getElementById('spDisconnect').addEventListener('click', () => {
-      setSpotifyToken('');
-      localStorage.removeItem('runrank_spotify_verifier');
-      localStorage.removeItem('runrank_spotify_oauth_state');
-      showToast('Spotify', '연동 해제');
-      render();
-    });
   }
 
   function renderAbout() {
     el.view.innerHTML = `
       ${renderHeader('About', 'RunRank')}
       <div class="detail">
-        <div style="font-weight:900;">이번 업데이트</div>
-        <div style="font-size:11px; color: var(--muted); line-height:1.45;">
-          ✅ 앨범커버: 서버 캐시 + iTunes 검색<br/>
-          ✅ Runs: 런닝 기록 + 사진 업로드<br/>
+        <h2>RunRank</h2>
+        <p>러닝용 노래 체크/랭킹/기록.</p>
+        <p>서버: FastAPI + SQLite</p>
+        <div class="chipRow">
+          <div class="chip"><b>API</b> /api/health</div>
+          <div class="chip"><b>PWA</b> service-worker</div>
         </div>
       </div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
+      <div class="kbd">Esc/Back로 이전</div>
     `;
   }
 
   function renderDetail() {
-    const t = state.selectedTrack;
-    if (!t) { state.page = 'tracks'; return renderTracks(); }
+    const d = state.detailItem;
+    if (!d) { state.page = 'menu'; return renderMenu(); }
 
-    const cover = pickCoverUrl(t);
-    const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
-    const artist = safeText(t.artist || t.singer || t.by || '');
-    const id = t.id ?? t.track_id ?? t.trackId;
-
-    el.view.innerHTML = `
-      ${renderHeader('Track', '상세')}
-      <div class="detail">
-        <div style="display:flex; gap:10px; align-items:center;">
-          <div class="thumb" style="width:56px;height:56px;border-radius:12px;">
-            ${cover ? `<img alt="" src="${cover}">` : '♪'}
+    if (d.type === 'track') {
+      const t = d.data || {};
+      const cover = pickCoverUrl(t);
+      const checked = state.checkedTrackIds.has(Number(t.id));
+      el.view.innerHTML = `
+        ${renderHeader('Track', checked ? '✓ 체크됨' : '')}
+        <div class="detail">
+          <div class="row">
+            <div class="cover">${cover ? `<img src="${cover}" alt="">` : '♪'}</div>
+            <div style="min-width:0">
+              <h2>${safeText(t.title || t.name || t.track || 'Untitled')}</h2>
+              <p>${safeText(t.artist || t.singer || t.by || '')}</p>
+            </div>
           </div>
-          <div style="min-width:0;">
-            <div style="font-weight:900; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}</div>
-            <div style="font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(artist || ' ')}</div>
+          <div class="chipRow">
+            <div class="chip"><b>ID</b> ${safeText(t.id ?? '')}</div>
+            <div class="chip"><b>체크</b> Space로 토글</div>
+          </div>
+          <p style="margin-top:10px">OK=투표(서버), Space=체크(로컬), Back=이전</p>
+        </div>
+        <div class="kbd">휠: 아무 동작 없음 · Space 체크 · OK 투표</div>
+      `;
+      return;
+    }
+
+    if (d.type === 'rank') {
+      const it = normalizeRankingItem(d.data || {});
+      el.view.innerHTML = `
+        ${renderHeader('Detail', 'Ranking')}
+        <div class="detail">
+          <div class="row">
+            <div class="cover">${it.cover_url ? `<img src="${it.cover_url}" alt="">` : '★'}</div>
+            <div style="min-width:0">
+              <h2>${it.title || '(제목 없음)'}</h2>
+              <p>${it.artist || ''}</p>
+            </div>
+          </div>
+          <div class="chipRow">
+            <div class="chip"><b>점수</b> ${safeText(it.score)}</div>
           </div>
         </div>
+        <div class="kbd">Back/Esc로 이전</div>
+      `;
+      return;
+    }
 
-        <div class="cta">
-          <button class="btn" id="backBtn">뒤로</button>
-          <button class="btn primary" id="voteBtn">추천(Like)</button>
+    if (d.type === 'run') {
+      const r = d.data || {};
+      const dt = safeText(r.date || r.created_at || '');
+      const dist = (r.distance_km ?? r.distance ?? '');
+      const dur = r.duration_sec ? fmtDur(r.duration_sec) : safeText(r.duration || r.time || '');
+      el.view.innerHTML = `
+        ${renderHeader('Run', '기록')}
+        <div class="detail">
+          <h2>${dt || 'Run'}</h2>
+          <div class="chipRow">
+            <div class="chip"><b>거리</b> ${safeText(dist)} km</div>
+            <div class="chip"><b>시간</b> ${dur}</div>
+          </div>
+          <p style="margin-top:10px">OK=추가(현재 화면에서는 없음), Back=이전</p>
         </div>
-      </div>
-      <div class="kbd"><code>Space</code> 체크 · <code>Esc</code> 뒤로</div>
-    `;
+        <div class="kbd">Back/Esc로 이전</div>
+      `;
+      return;
+    }
 
-    document.getElementById('backBtn').addEventListener('click', () => goBack());
-    document.getElementById('voteBtn').addEventListener('click', () => submit(id));
+    state.page = 'menu';
+    renderMenu();
   }
 
-  function goTo(page) { state.page = page; state.listIndex = 0; render(); }
+  // ===== Data Fetch =====
+  async function api(path, opts) {
+    const res = await fetch(path, opts || {});
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return await res.json();
+  }
+
+  async function loadAll() {
+    try {
+      state.online = navigator.onLine;
+      const [tracks, ranking, hot, runs] = await Promise.all([
+        api('/api/tracks').catch(()=>[]),
+        api('/api/ranking').catch(()=>[]),
+        api('/api/hot').catch(()=>[]),
+        api('/api/runs').catch(()=>[]),
+      ]);
+      state.tracks = Array.isArray(tracks) ? tracks : (tracks.items || []);
+      state.ranking = Array.isArray(ranking) ? ranking : (ranking.items || []);
+      state.hot = Array.isArray(hot) ? hot : (hot.items || []);
+      state.runs = Array.isArray(runs) ? runs : (runs.items || []);
+      render();
+    } catch (e) {
+      state.online = false;
+      render();
+    }
+  }
+
+  // ===== Navigation / Actions =====
+  function goMenu() {
+    state.page = 'menu';
+    state.menuIndex = clampIndex(state.menuIndex, MENU.length);
+    renderMenu();
+  }
   function goBack() {
-    if (state.page === 'detail') { state.page = 'tracks'; return render(); }
-    state.page = 'menu'; render();
-  }
-  function moveUp(){ if (state.page === 'menu') state.menuIndex--; else state.listIndex--; render(); }
-  function moveDown(){ if (state.page === 'menu') state.menuIndex++; else state.listIndex++; render(); }
-
-  function select(){
-    if (state.page === 'menu'){
-      const key = MENU[clampIndex(state.menuIndex, MENU.length)]?.key;
-      if (key === 'runs') { state.page = 'runs'; refreshRuns(); return; }
-      return goTo(key || 'tracks');
+    if (state.page === 'detail') {
+      const from = state.detailItem?.from || 'menu';
+      state.page = from;
+      state.detailItem = null;
+      render();
+      return;
     }
-    if (state.page === 'tracks'){
-      const list = state.tracks || [];
-      const t = list[clampIndex(state.listIndex, list.length)];
-      if (!t) return;
-      state.selectedTrack = t;
-      state.page = 'detail';
-      return render();
+    if (state.page !== 'menu') {
+      state.page = 'menu';
+      state.listIndex = 0;
+      renderMenu();
+      return;
     }
   }
-
-  function toggleCheck() {
-    let id = null;
+  function openSelected() {
+    if (state.page === 'menu') {
+      const m = MENU[state.menuIndex];
+      if (!m) return;
+      state.page = m.key;
+      state.listIndex = 0;
+      render();
+      return;
+    }
     if (state.page === 'tracks') {
-      const list = state.tracks || [];
-      const t = list[clampIndex(state.listIndex, list.length)];
-      id = t?.id ?? t?.track_id ?? t?.trackId;
-    } else if (state.page === 'detail') {
-      id = state.selectedTrack?.id ?? state.selectedTrack?.track_id ?? state.selectedTrack?.trackId;
+      const t = (state.tracks || [])[state.listIndex];
+      if (!t) return;
+      state.detailItem = { type:'track', data:t, from:'tracks' };
+      state.page = 'detail';
+      renderDetail();
+      return;
     }
-    if (id == null) return;
-    id = Number(id);
-
-    if (state.checkedTrackIds.has(id)) {
-      state.checkedTrackIds.delete(id);
-      showToast('해제', `선택곡 ${state.checkedTrackIds.size}개`);
-    } else {
-      state.checkedTrackIds.add(id);
-      showToast('체크', `선택곡 ${state.checkedTrackIds.size}개`);
+    if (state.page === 'ranking') {
+      const x = (state.ranking || [])[state.listIndex];
+      if (!x) return;
+      state.detailItem = { type:'rank', data:x, from:'ranking' };
+      state.page = 'detail';
+      renderDetail();
+      return;
     }
-    render();
+    if (state.page === 'hot') {
+      const x = (state.hot || [])[state.listIndex];
+      if (!x) return;
+      state.detailItem = { type:'rank', data:x, from:'hot' };
+      state.page = 'detail';
+      renderDetail();
+      return;
+    }
+    if (state.page === 'runs') {
+      const r = (state.runs || [])[state.listIndex];
+      if (!r) return;
+      state.detailItem = { type:'run', data:r, from:'runs' };
+      state.page = 'detail';
+      renderDetail();
+      return;
+    }
+    if (state.page === 'settings' || state.page === 'about') {
+      return;
+    }
   }
 
-  function attachClickWheelRotation() {
-    const wheel = document.querySelector('.wheel');
-    const center = document.getElementById('btnCenter');
-    if (!wheel || !center) return;
-    if (wheel.dataset.bound === '1') return;
-    wheel.dataset.bound = '1';
+  async function voteSelectedTrack() {
+    if (state.page !== 'detail' || state.detailItem?.type !== 'track') return;
+    const t = state.detailItem.data;
+    if (!t?.id) return;
+    try {
+      await api('/api/vote', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ track_id: Number(t.id) }),
+      });
+      await loadAll();
+    } catch (e) {
+      // ignore
+    }
+  }
 
+  function toggleCheckSelected() {
+    if (state.page === 'tracks') {
+      const t = (state.tracks || [])[state.listIndex];
+      if (!t?.id) return;
+      const id = Number(t.id);
+      if (state.checkedTrackIds.has(id)) state.checkedTrackIds.delete(id);
+      else state.checkedTrackIds.add(id);
+      renderTracks();
+      return;
+    }
+    if (state.page === 'detail' && state.detailItem?.type === 'track') {
+      const t = state.detailItem.data;
+      const id = Number(t.id);
+      if (state.checkedTrackIds.has(id)) state.checkedTrackIds.delete(id);
+      else state.checkedTrackIds.add(id);
+      renderDetail();
+      return;
+    }
+  }
+
+  // ===== Keyboard controls =====
+  window.addEventListener('keydown', (e)=>{
+    const k = e.key.toLowerCase();
+    if (k === 'escape') { goBack(); return; }
+    if (k === 'm') { goMenu(); return; }
+
+    if (k === 'enter') { openSelected(); return; }
+    if (k === ' ') { e.preventDefault(); toggleCheckSelected(); return; }
+
+    if (k === 'arrowup') { moveSelection(-1); return; }
+    if (k === 'arrowdown') { moveSelection(+1); return; }
+  });
+
+  function moveSelection(delta){
+    if (state.page === 'menu') {
+      state.menuIndex = modIndex(state.menuIndex + delta, MENU.length);
+      renderMenu();
+      return;
+    }
+    if (state.page === 'tracks') {
+      const n = (state.tracks || []).length;
+      state.listIndex = modIndex(state.listIndex + delta, n);
+      renderTracks();
+      return;
+    }
+    if (state.page === 'ranking') {
+      const n = (state.ranking || []).length;
+      state.listIndex = modIndex(state.listIndex + delta, n);
+      renderRanking();
+      return;
+    }
+    if (state.page === 'hot') {
+      const n = (state.hot || []).length;
+      state.listIndex = modIndex(state.listIndex + delta, n);
+      renderHot();
+      return;
+    }
+    if (state.page === 'runs') {
+      const n = (state.runs || []).length;
+      state.listIndex = modIndex(state.listIndex + delta, n);
+      renderRuns();
+      return;
+    }
+  }
+
+  // ===== Click support =====
+  el.view.addEventListener('click', (e)=>{
+    const item = e.target.closest('.item');
+    if (!item) return;
+    const list = Array.from(el.view.querySelectorAll('.item'));
+    const idx = list.indexOf(item);
+    if (idx < 0) return;
+
+    if (state.page === 'menu') {
+      state.menuIndex = idx;
+      renderMenu();
+      openSelected();
+      return;
+    }
+    if (['tracks','ranking','hot','runs'].includes(state.page)) {
+      state.listIndex = idx;
+      render();
+      openSelected();
+      return;
+    }
+  });
+
+  // ===== Wheel: drag + mousewheel + touch =====
+  (function(){
     let dragging = false;
     let lastAngle = 0;
     let accum = 0;
-    const STEP_DEG = 22;
+    const STEP = 18; // degrees per tick
 
-    function angleFromEvent(ev) {
-      const r = wheel.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const x = ev.clientX - cx;
-      const y = ev.clientY - cy;
-      let a = Math.atan2(y, x) * 180 / Math.PI;
-      if (a < 0) a += 360;
-      return a;
-    }
-    function isOnOuterRing(ev) {
-      const r = wheel.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const dx = ev.clientX - cx;
-      const dy = ev.clientY - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const outer = r.width / 2;
-      const inner = outer * 0.33;
-      return dist <= outer && dist >= inner;
+    function angleFromEvent(ev){
+      const rect = el.wheel.getBoundingClientRect();
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top + rect.height/2;
+      const x = (ev.clientX ?? ev.touches?.[0]?.clientX) - cx;
+      const y = (ev.clientY ?? ev.touches?.[0]?.clientY) - cy;
+      return Math.atan2(y, x) * 180 / Math.PI;
     }
 
-    function rotateStep(dir) {
-      if (state.page === 'menu') {
-        state.menuIndex = clampIndex(state.menuIndex + dir, MENU.length);
-        render(); return;
-      }
-      const listLen =
-        state.page === 'tracks' ? (state.tracks || []).length :
-        state.page === 'ranking' ? (state.ranking || []).length :
-        state.page === 'hot' ? (state.hot || []).length :
-        state.page === 'runs' ? (state.runs || []).length : 0;
-
-      if (listLen > 0) {
-        state.listIndex = clampIndex(state.listIndex + dir, listLen);
-        render();
-      }
-    }
-
-    wheel.addEventListener('pointerdown', (ev) => {
-      if (ev.target === center || center.contains(ev.target)) return;
-      if (!isOnOuterRing(ev)) return;
+    function onStart(ev){
       dragging = true;
       lastAngle = angleFromEvent(ev);
       accum = 0;
-      wheel.setPointerCapture(ev.pointerId);
-    });
-
-    wheel.addEventListener('pointermove', (ev) => {
+      el.wheel.setPointerCapture?.(ev.pointerId);
+      ev.preventDefault();
+    }
+    function onMove(ev){
       if (!dragging) return;
-      if (!isOnOuterRing(ev)) return;
       const a = angleFromEvent(ev);
-      let delta = a - lastAngle;
-      if (delta > 180) delta -= 360;
-      if (delta < -180) delta += 360;
+      let diff = a - lastAngle;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
       lastAngle = a;
-      accum += delta;
-      while (accum >= STEP_DEG) { rotateStep(+1); accum -= STEP_DEG; }
-      while (accum <= -STEP_DEG) { rotateStep(-1); accum += STEP_DEG; }
+      accum += diff;
+
+      while (accum >= STEP) { accum -= STEP; moveSelection(+1); }
+      while (accum <= -STEP) { accum += STEP; moveSelection(-1); }
+      ev.preventDefault();
+    }
+    function onEnd(ev){
+      dragging = false;
+      el.wheel.releasePointerCapture?.(ev.pointerId);
+      ev.preventDefault();
+    }
+
+    // Pointer events
+    el.wheel.addEventListener('pointerdown', onStart, {passive:false});
+    el.wheel.addEventListener('pointermove', onMove, {passive:false});
+    el.wheel.addEventListener('pointerup', onEnd, {passive:false});
+    el.wheel.addEventListener('pointercancel', onEnd, {passive:false});
+
+    // Touch fallback
+    el.wheel.addEventListener('touchstart', onStart, {passive:false});
+    el.wheel.addEventListener('touchmove', onMove, {passive:false});
+    el.wheel.addEventListener('touchend', onEnd, {passive:false});
+
+    // Mouse wheel (desktop)
+    el.wheel.addEventListener('wheel', (e)=>{
+      e.preventDefault();
+      const d = e.deltaY > 0 ? +1 : -1;
+      moveSelection(d);
+    }, {passive:false});
+
+    // Center button
+    el.center.addEventListener('click', ()=>{
+      if (state.page === 'detail' && state.detailItem?.type === 'track') {
+        voteSelectedTrack();
+      } else {
+        openSelected();
+      }
     });
 
-    wheel.addEventListener('pointerup', () => { dragging = false; });
-    wheel.addEventListener('pointercancel', () => { dragging = false; });
-  }
-
-  function bind() {
-    el.btnMenu.addEventListener('click', goBack);
-    el.btnPrev.addEventListener('click', moveUp);
-    el.btnNext.addEventListener('click', moveDown);
-    el.btnCenter.addEventListener('click', select);
-    el.btnPlay.addEventListener('click', toggleCheck);
-
-    attachClickWheelRotation();
-
-    window.addEventListener('keydown', (e) => {
-      const k = e.key;
-      if (k === 'ArrowUp') { e.preventDefault(); moveUp(); }
-      else if (k === 'ArrowDown') { e.preventDefault(); moveDown(); }
-      else if (k === 'Enter') { e.preventDefault(); select(); }
-      else if (k === 'Escape') { e.preventDefault(); goBack(); }
-      else if (k === ' ') { e.preventDefault(); toggleCheck(); }
+    // Simple MENU / BACK taps (labels are not clickable; use long-press-ish)
+    el.wheel.addEventListener('dblclick', ()=>{
+      // double click = menu
+      goMenu();
     });
+    el.wheel.addEventListener('contextmenu', (e)=>{
+      e.preventDefault();
+      goBack();
+    });
+  })();
 
-    window.addEventListener('online', () => setTimeout(checkOnline, 300));
-    window.addEventListener('offline', () => setTimeout(checkOnline, 300));
-  }
+  // First paint
+  render();
+  loadAll();
 
-  function tick() { el.clock.textContent = fmtClock(); }
-
-  // boot
-  bind();
-  tick();
-  setInterval(tick, 1000 * 10);
-  handleSpotifyCallback();
-
-  window.addEventListener('load', () => {
-    startOnlineMonitor();
-    refreshAll();
-  });
-})();
-</script>
+  </script>
 </body>
 </html>
