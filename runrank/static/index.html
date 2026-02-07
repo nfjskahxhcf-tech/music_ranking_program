@@ -20,10 +20,6 @@
       --muted:#9db0d1;
       --accent:#7bdcff;
       --line: rgba(255,255,255,.12);
-      --danger:#ff6b6b;
-      --ok:#6bffb0;
-      --radius: 26px;
-      --screenRadius: 12px;
       --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", Helvetica, Arial, sans-serif;
     }
     html,body{height:100%; margin:0; background: radial-gradient(1200px 800px at 70% 20%, #1a2b3a 0%, var(--bg) 55%, #06060a 100%); color:var(--text); font-family:var(--font);}
@@ -34,7 +30,7 @@
     .ipod{width:min(360px, 92vw);aspect-ratio:9/14;border-radius:36px;background:linear-gradient(180deg,var(--device) 0%,var(--device2) 100%);box-shadow:0 24px 70px var(--shadow);padding:18px 16px 20px;position:relative;}
     .ipod:before{content:"";position:absolute;inset:10px 10px auto 10px;height:20px;border-radius:16px;background:rgba(255,255,255,.35);filter:blur(.2px);}
 
-    .screen{height:40%;border-radius:var(--screenRadius);background:linear-gradient(180deg,var(--screen2),var(--screen));border:1px solid rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);padding:10px 10px 12px;overflow:hidden;position:relative;}
+    .screen{height:40%;border-radius:12px;background:linear-gradient(180deg,var(--screen2),var(--screen));border:1px solid rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);padding:10px 10px 12px;overflow:hidden;position:relative;}
     .status{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);letter-spacing:.2px;padding:2px 2px 6px;}
     .status .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.09);color:var(--muted);}
 
@@ -56,18 +52,12 @@
     .item.active .right{color:var(--text);}
 
     .detail{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,.08);
+      display:flex; flex-direction:column; gap:10px;
+      border-radius:10px; border:1px solid rgba(255,255,255,.08);
       background:rgba(255,255,255,.04);
-      padding:10px;
-      height:100%;
-      overflow:auto;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      padding-bottom: 22px;
+      padding:10px; height:100%;
+      overflow:auto; -webkit-overflow-scrolling:touch;
+      overscroll-behavior:contain; padding-bottom:22px;
     }
 
     input{
@@ -96,8 +86,24 @@
     .btn:active{transform: translateY(1px);}
 
     .wheelWrap{height:60%;display:flex;align-items:center;justify-content:center;padding-top:14px;}
-    .wheel{width:82%;aspect-ratio:1/1;border-radius:999px;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.65),rgba(255,255,255,.22) 35%,rgba(0,0,0,.05) 66%,rgba(0,0,0,.10) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 10px 28px rgba(0,0,0,.16);position:relative;user-select:none;touch-action:none;}
-    .wheel .center{position:absolute;inset:30%;border-radius:999px;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.85),rgba(255,255,255,.20) 60%,rgba(0,0,0,.06) 100%);border:1px solid rgba(0,0,0,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);display:grid;place-items:center;font-weight:900;color:rgba(20,20,24,.65);cursor:pointer;}
+    .wheel{
+      width:82%; aspect-ratio:1/1; border-radius:999px;
+      background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.65),rgba(255,255,255,.22) 35%,rgba(0,0,0,.05) 66%,rgba(0,0,0,.10) 100%);
+      border:1px solid rgba(0,0,0,.20);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 10px 28px rgba(0,0,0,.16);
+      position:relative;
+      user-select:none;
+      touch-action:none;
+    }
+    .wheel .center{
+      position:absolute; inset:30%; border-radius:999px;
+      background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.85),rgba(255,255,255,.20) 60%,rgba(0,0,0,.06) 100%);
+      border:1px solid rgba(0,0,0,.20);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+      display:grid; place-items:center;
+      font-weight:900; color:rgba(20,20,24,.65);
+      cursor:pointer;
+    }
     .wheelBtn{position:absolute;display:grid;place-items:center;width:36%;height:20%;font-size:12px;font-weight:900;color:rgba(20,20,24,.65);cursor:pointer;}
     .wheelBtn.top{top:4%;left:32%;}
     .wheelBtn.bottom{bottom:4%;left:32%;}
@@ -123,6 +129,15 @@
     .toast .s{margin-top:2px;font-size:11px;color:rgba(255,255,255,.72);}
 
     .kbd{font-size:11px;color:var(--muted);line-height:1.4;padding:0 2px;}
+    code{
+      background: rgba(0,0,0,.20);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:8px;
+      padding: 1px 6px;
+      margin:0 2px;
+      color: rgba(255,255,255,.85);
+      font-size: 11px;
+    }
   </style>
 </head>
 
@@ -134,12 +149,11 @@
           <div id="clock">--:--</div>
           <div class="pill" id="pillState">ONLINE</div>
         </div>
-
         <div class="view" id="view"></div>
       </div>
 
       <div class="wheelWrap">
-        <div class="wheel">
+        <div class="wheel" id="wheel">
           <div class="wheelBtn top" id="btnMenu"><small>MENU</small></div>
           <div class="wheelBtn left" id="btnPrev" aria-label="Previous">
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 5h2v14H6zM20 6v12l-10-6z"/></svg>
@@ -147,8 +161,10 @@
           <div class="wheelBtn right" id="btnNext" aria-label="Next">
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M16 5h2v14h-2zM4 6v12l10-6z"/></svg>
           </div>
-          <div class="wheelBtn bottom" id="btnPlay" aria-label="Play/Pause">
-            <svg id="iconPlay" viewBox="0 0 24 24" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>
+          <div class="wheelBtn bottom" id="btnCheck" aria-label="Check">
+            <svg viewBox="0 0 24 24" width="22" height="22">
+              <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"></path>
+            </svg>
           </div>
           <div class="center" id="btnCenter">OK</div>
         </div>
@@ -163,13 +179,13 @@
 
 <script>
 (() => {
-  // Service Worker
+  // SW 등록
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
         const reg = await navigator.serviceWorker.register('/service-worker.js');
-        try { await reg.update(); } catch (e) {}
-      } catch (e) {}
+        try { await reg.update(); } catch (_) {}
+      } catch (_) {}
     });
   }
 
@@ -186,15 +202,17 @@
     checkedTrackIds: new Set(),
     online: true,
     voteArmed: false,
+    _detailTrackId: null,
+    _shareRunText: null,
   };
 
   const MENU = [
-    { key: 'tracks',   label: 'Tracks',   hint: '곡 목록 / 추천' },
+    { key: 'tracks',   label: 'Tracks',   hint: '곡 목록 / 체크' },
     { key: 'ranking',  label: 'Ranking',  hint: '전체 랭킹' },
     { key: 'hot',      label: 'Hot',      hint: '최근 인기' },
-    { key: 'runs',     label: 'Runs',     hint: '런닝 기록 + 사진' },
-    { key: 'settings', label: 'Settings', hint: '닉네임 / 옵션' },
-    { key: 'about',    label: 'About',    hint: '앱 정보' },
+    { key: 'runs',     label: 'Runs',     hint: '런닝 기록' },
+    { key: 'settings', label: 'Settings', hint: '닉네임' },
+    { key: 'about',    label: 'About',    hint: '설명' },
   ];
 
   const el = {
@@ -204,10 +222,11 @@
     toastSub: document.getElementById('toastSub'),
     pill: document.getElementById('pillState'),
     clock: document.getElementById('clock'),
+    wheel: document.getElementById('wheel'),
     btnMenu: document.getElementById('btnMenu'),
     btnPrev: document.getElementById('btnPrev'),
     btnNext: document.getElementById('btnNext'),
-    btnPlay: document.getElementById('btnPlay'),
+    btnCheck: document.getElementById('btnCheck'),
     btnCenter: document.getElementById('btnCenter'),
   };
 
@@ -237,6 +256,14 @@
   function getNick() { return localStorage.getItem('runrank_nick') || ''; }
   function setNick(v) { localStorage.setItem('runrank_nick', v); }
 
+  function pickCoverUrl(x) { return x?.cover_url || x?.album_art || x?.image_url || ''; }
+
+  async function apiGet(path) {
+    const res = await fetch(path, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${res.status}`);
+    return await res.json();
+  }
+
   async function checkOnline() {
     try {
       const res = await fetch('/api/health', { cache: 'no-store' });
@@ -249,18 +276,11 @@
   }
   function startOnlineMonitor() { checkOnline(); setInterval(checkOnline, 15000); }
 
-  function pickCoverUrl(x) { return x?.cover_url || x?.album_art || x?.image_url || ''; }
-
-  async function apiGet(path) {
-    const res = await fetch(path, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
-  }
-
+  // ✅ 커버 포함: 서버에서 resolve_missing으로 채워오기
   async function refreshAll() {
     try {
       const [tracks, ranking, hot] = await Promise.all([
-        apiGet('/api/tracks?resolve_missing=1&resolve_limit=20'),
+        apiGet('/api/tracks?resolve_missing=1&resolve_limit=50'),
         apiGet('/api/ranking'),
         apiGet('/api/hot_ranking'),
       ]);
@@ -288,30 +308,6 @@
     }
   }
 
-  async function submit(trackId) {
-    try {
-      const body = { track_id: Number(trackId), user: getNick() || null };
-      const res = await fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
-      showToast('투표 완료', '랭킹에 반영됐어');
-
-      const [ranking, hot] = await Promise.all([
-        apiGet('/api/ranking'),
-        apiGet('/api/hot_ranking'),
-      ]);
-      state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
-      state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
-      render();
-    } catch (e) {
-      showToast('실패', String(e.message || '서버 오류').slice(0, 80));
-    }
-  }
-
   function clampIndex(i, n) { if (n <= 0) return 0; return (i % n + n) % n; }
 
   function renderHeader(title, hint) {
@@ -322,14 +318,7 @@
     const list = el.view.querySelector('.list');
     const active = el.view.querySelector('.item.active');
     if (!list || !active) return;
-    try {
-      active.scrollIntoView({ block: 'nearest' });
-    } catch (e) {
-      const top = active.offsetTop;
-      const bottom = top + active.offsetHeight;
-      if (top < list.scrollTop) list.scrollTop = top;
-      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
-    }
+    try { active.scrollIntoView({ block: 'nearest' }); } catch (_) {}
   }
 
   function normalizeRankingItem(x) {
@@ -347,11 +336,44 @@
     return `${m}:${String(s).padStart(2, '0')}`;
   }
 
+  // ===== 투표(여러 곡 가능) =====
+  async function submitMulti(trackIds) {
+    try {
+      const user = (getNick() || '').trim();
+      if (!user) { showToast('투표', 'Settings에서 닉네임 먼저 저장'); return; }
+
+      const uniq = Array.from(new Set((trackIds || []).map(x => Number(x)).filter(x => Number.isFinite(x))));
+      if (!uniq.length) { showToast('투표', '투표할 곡이 없어'); return; }
+
+      const body = { user, track_ids: uniq };
+      const res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
+
+      showToast('투표 완료', `총 ${uniq.length}곡`);
+      // 랭킹 갱신
+      const [ranking, hot] = await Promise.all([
+        apiGet('/api/ranking'),
+        apiGet('/api/hot_ranking'),
+      ]);
+      state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
+      state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
+      render();
+    } catch (e) {
+      showToast('투표 실패', String(e.message || e).slice(0, 80));
+    }
+  }
+
+  // ===== 화면 렌더 =====
   function render() {
     el.pill.textContent = state.online ? 'ONLINE' : 'OFFLINE';
     el.pill.style.opacity = state.online ? '1' : '0.75';
 
-    if (state.page === 'detail') return renderDetail();
+    if (state.page === 'detail') return renderTrackDetail();
     if (state.page === 'run_create') return renderRunCreate();
     if (state.page === 'run_detail') return renderRunDetail();
     if (state.page === 'menu') return renderMenu();
@@ -379,7 +401,7 @@
     el.view.innerHTML = `
       ${renderHeader('RunRank', 'iPod UI')}
       <div class="list">${items}</div>
-      <div class="kbd">조작: <code>↑</code><code>↓</code> 이동 · <code>OK</code> 선택 · <code>MENU</code> 홈 · <code>PLAY</code> 체크</div>
+      <div class="kbd">조작: <code>휠</code> 이동 · <code>OK</code> 선택 · <code>CHECK</code> 곡 체크</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -405,7 +427,7 @@
     el.view.innerHTML = `
       ${renderHeader('Tracks', 'OK=상세')}
       <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">/api/tracks 확인</div></div></div>'}</div>
-      <div class="kbd"><code>OK</code> 상세 · <code>PLAY</code> 체크/해제 · <code>MENU</code> 홈</div>
+      <div class="kbd"><code>OK</code> 상세 · <code>CHECK</code> 체크/해제 · (체크한 곡들은 투표 묶음에 사용됨)</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -476,7 +498,6 @@
 
   function renderSettings() {
     const nick = getNick();
-
     el.view.innerHTML = `
       ${renderHeader('Settings', '닉네임')}
       <div class="detail">
@@ -484,31 +505,26 @@
           <input id="nickInput" value="${escapeAttr(nick)}" placeholder="예) joon" style="flex:1;">
           <button class="btn primary" id="saveNick">저장</button>
         </div>
-
         <div class="cta">
           <button class="btn" id="refreshBtn">새로고침</button>
           <button class="btn" id="loadRuns">내 Runs</button>
         </div>
-
         <div style="font-size:11px; color:var(--muted); line-height:1.45;">
-          * Runs 기록 저장/공유는 닉네임이 필요함
+          * 투표/기록 저장은 닉네임이 필요함
         </div>
       </div>
       <div class="kbd"><code>MENU</code> 홈</div>
     `;
-
     document.getElementById('saveNick').addEventListener('click', () => {
       const v = document.getElementById('nickInput').value.trim();
       setNick(v);
       showToast('저장됨', v ? `닉네임: ${v}` : '비워뒀어');
       render();
     });
-
     document.getElementById('refreshBtn').addEventListener('click', async () => {
       showToast('갱신', '데이터 불러오는 중…');
       await refreshAll();
     });
-
     document.getElementById('loadRuns').addEventListener('click', async () => {
       state.page = 'runs';
       await refreshRuns();
@@ -517,29 +533,32 @@
 
   function renderAbout() {
     el.view.innerHTML = `
-      ${renderHeader('About', 'RunRank')}
+      ${renderHeader('About', '설명')}
       <div class="detail">
-        <div style="font-weight:900;">조작</div>
-        <div style="font-size:11px; color: var(--muted); line-height:1.45;">
-          - 휠 회전/좌우 버튼: 메뉴 이동<br/>
-          - OK: 선택 / Runs에서는 기록 작성<br/>
-          - PLAY: Tracks에서 체크(✓) <br/>
+        <div style="font-weight:900;">버튼 기능</div>
+        <div style="font-size:11px; color: var(--muted); line-height:1.5;">
+          - <b>휠 회전(원형 드래그)</b>: 리스트 이동<br/>
+          - <b>좌/우 버튼</b>: 리스트 이동<br/>
+          - <b>OK</b>: 선택/진입 (Track 상세에서 투표 실행)<br/>
+          - <b>CHECK(하단)</b>: Tracks에서 곡 체크/해제 (여러 곡 투표/런 기록 저장에 사용)<br/>
+          - <b>MENU</b>: 홈으로 이동<br/>
         </div>
       </div>
       <div class="kbd"><code>MENU</code> 홈</div>
     `;
   }
 
-  function renderDetail() {
+  function renderTrackDetail() {
     const t = state.selectedTrack;
     if (!t) { state.page = 'tracks'; return renderTracks(); }
 
     const cover = pickCoverUrl(t);
     const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
     const artist = safeText(t.artist || t.singer || t.by || '');
-    const id = t.id ?? t.track_id ?? t.trackId;
+    const id = Number(t.id ?? t.track_id ?? t.trackId);
 
     const box = state.voteArmed ? '☑' : '☐';
+    const checkedCount = state.checkedTrackIds.size;
 
     el.view.innerHTML = `
       ${renderHeader('Track', '투표')}
@@ -557,7 +576,8 @@
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
           <button class="btn" id="voteBox" aria-label="Vote toggle">${box}</button>
           <div style="font-size:12px; color:var(--muted); line-height:1.35;">
-            체크(☐→☑) 후 <b style="color:var(--text);">OK</b> 누르면 투표됨
+            체크(☐→☑) 후 <b style="color:var(--text);">OK</b> 누르면 투표됨<br/>
+            (체크한 곡 ${checkedCount}개 + 현재 곡을 <b>한 번에</b> 투표)
           </div>
         </div>
 
@@ -565,16 +585,28 @@
           <button class="btn" id="backBtn">뒤로</button>
         </div>
       </div>
-      <div class="kbd"><code>OK</code> 투표(☑일 때) · <code>PLAY</code> 트랙 체크 · <code>MENU</code> 홈</div>
+      <div class="kbd"><code>OK</code> 투표(☑일 때) · <code>CHECK</code>는 목록에서 곡 체크/해제</div>
     `;
 
     document.getElementById('backBtn').addEventListener('click', () => goBack());
     document.getElementById('voteBox').addEventListener('click', () => {
       state.voteArmed = !state.voteArmed;
-      renderDetail();
+      renderTrackDetail();
     });
 
-    state._detailTrackId = Number(id);
+    state._detailTrackId = id;
+  }
+
+  // ===== Runs 작성/공유 =====
+  function parseMmSs(s) {
+    const t = String(s || '').trim();
+    if (!t) return null;
+    const m = t.match(/^(\d+)\s*:\s*(\d{1,2})$/);
+    if (!m) return null;
+    const mm = parseInt(m[1], 10);
+    const ss = parseInt(m[2], 10);
+    if (!Number.isFinite(mm) || !Number.isFinite(ss) || ss >= 60) return null;
+    return mm * 60 + ss;
   }
 
   function renderRunCreate() {
@@ -587,8 +619,8 @@
 
     const checked = Array.from(state.checkedTrackIds || []);
     const pickedTxt = checked.length
-      ? `선택한 노래 ${checked.length}개가 기록에 저장돼 (서버에서 자동 투표도 시도함)`
-      : `선택한 노래가 없어. Tracks에서 PLAY로 체크하면 같이 저장 가능`;
+      ? `체크한 노래 ${checked.length}개가 기록에 함께 저장될 수 있어`
+      : `체크한 노래가 없어. Tracks에서 CHECK로 체크하면 같이 저장 가능`;
 
     el.view.innerHTML = `
       ${renderHeader('Run', '기록 작성')}
@@ -602,11 +634,12 @@
         </div>
 
         <div style="display:flex; gap:8px; align-items:center;">
-          <input id="runDist" inputmode="decimal" placeholder="거리(km) 예) 5.2" style="flex:1;" />
+          <input id="runDist" placeholder="거리(km) 예) 5.2" style="flex:1;" />
         </div>
 
+        <!-- ✅ 3번: ':' 입력 가능하도록 type=text + inputmode 제거 -->
         <div style="display:flex; gap:8px; align-items:center;">
-          <input id="runDur" inputmode="numeric" placeholder="시간(mm:ss) 예) 24:30" style="flex:1;" />
+          <input id="runDur" type="text" placeholder="시간(mm:ss) 예) 24:30" style="flex:1;" />
         </div>
 
         <div style="display:flex; gap:8px; align-items:center;">
@@ -622,22 +655,11 @@
           * 닉네임이 없으면 저장이 안 돼. Settings에서 닉네임 먼저 저장해.
         </div>
       </div>
-      <div class="kbd"><code>BACK</code> 취소 · <code>OK</code> 저장</div>
+      <div class="kbd"><code>OK</code> 저장 · <code>MENU</code> 홈</div>
     `;
 
     document.getElementById('runCancel').addEventListener('click', () => { state.page='runs'; render(); });
     document.getElementById('runSave').addEventListener('click', () => submitRunCreate());
-  }
-
-  function parseMmSs(s) {
-    const t = String(s || '').trim();
-    if (!t) return null;
-    const m = t.match(/^(\d+)\s*:\s*(\d{1,2})$/);
-    if (!m) return null;
-    const mm = parseInt(m[1], 10);
-    const ss = parseInt(m[2], 10);
-    if (!Number.isFinite(mm) || !Number.isFinite(ss) || ss >= 60) return null;
-    return mm * 60 + ss;
   }
 
   async function submitRunCreate() {
@@ -669,6 +691,7 @@
       if (!res.ok || data?.ok === false) throw new Error(data?.error || String(res.status));
 
       showToast('Runs', '저장 완료');
+
       state.selectedRun = {
         id: data.id,
         user: nick,
@@ -677,13 +700,26 @@
         duration_sec,
         pace: data.pace || '',
         photo_url: data.photo_url || null,
-        tracks: checked,
       };
+
       state.page = 'run_detail';
       await refreshRuns();
       render();
     } catch (e) {
       showToast('Runs 실패', String(e.message || e).slice(0,80));
+    }
+  }
+
+  async function shareRunText(text) {
+    const payload = { title: 'RunRank 기록', text: text };
+    if (navigator.share) {
+      try { await navigator.share(payload); return; } catch (_) {}
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('공유', '텍스트 복사됨 (카톡에 붙여넣기)');
+    } catch (_) {
+      alert(text);
     }
   }
 
@@ -703,6 +739,8 @@
       `거리: ${dist}km\n` +
       `시간: ${dur}\n` +
       (pace ? `페이스: ${pace}\n` : '');
+
+    state._shareRunText = text;
 
     el.view.innerHTML = `
       ${renderHeader('Run', '저장됨')}
@@ -725,37 +763,22 @@
         </div>
 
         <div style="font-size:11px; color:var(--muted); line-height:1.45;">
-          * SNS용 이미지 공유는 제외했고, 카톡/메신저용 텍스트 공유만 지원.
+          * 메신저용 텍스트 공유만 지원 (SNS 전용 공유 제외)
         </div>
       </div>
-      <div class="kbd"><code>BACK</code> 목록 · <code>OK</code> 공유</div>
+      <div class="kbd"><code>OK</code> 공유 · <code>MENU</code> 홈</div>
     `;
 
     document.getElementById('runBackBtn').addEventListener('click', ()=>{ state.page='runs'; render(); });
     document.getElementById('runShareBtn').addEventListener('click', async ()=>{ await shareRunText(text); });
-
-    state._shareRunText = text;
   }
 
-  async function shareRunText(text) {
-    const payload = { title: 'RunRank 기록', text: text };
-    if (navigator.share) {
-      try { await navigator.share(payload); return; } catch (e) {}
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast('공유', '텍스트를 복사했어 (카톡에 붙여넣기)');
-    } catch (e) {
-      alert(text);
-    }
-  }
-
-  function goTo(page) { state.page = page; state.listIndex = 0; render(); }
-
-  function goBack() {
-    if (state.page === 'detail') { state.voteArmed = false; state.page = 'tracks'; return render(); }
-    if (state.page === 'run_create') { state.page = 'runs'; return render(); }
-    if (state.page === 'run_detail') { state.page = 'runs'; return render(); }
+  // ===== 네비게이션/입력 =====
+  function goMenu(){ state.voteArmed=false; state.page='menu'; render(); }
+  function goBack(){
+    if (state.page === 'detail') { state.voteArmed=false; state.page='tracks'; return render(); }
+    if (state.page === 'run_create') { state.page='runs'; return render(); }
+    if (state.page === 'run_detail') { state.page='runs'; return render(); }
     state.page = 'menu'; render();
   }
 
@@ -763,49 +786,64 @@
   function moveDown(){ if (state.page === 'menu') state.menuIndex++; else state.listIndex++; render(); }
 
   function select(){
-    // OK behavior
+    // Track 상세: 투표 실행 (☑일 때만)
     if (state.page === 'detail') {
       const tid = state._detailTrackId;
       if (!tid) { showToast('투표', '트랙 정보가 없어'); return; }
-      if (!state.voteArmed) { showToast('투표', '체크(☐) 후 OK를 눌러'); return; }
+      if (!state.voteArmed) { showToast('투표', '체크(☐) 후 OK'); return; }
+
+      // ✅ 2번: 여러 곡 투표 = (체크한 곡들 + 현재 상세곡) 한 번에 track_ids로 전송
+      const ids = new Set(Array.from(state.checkedTrackIds || []));
+      ids.add(Number(tid));
       state.voteArmed = false;
-      submit(tid);
+      submitMulti(Array.from(ids));
       return;
     }
 
+    // Run 상세: 공유
     if (state.page === 'run_detail') {
       if (state._shareRunText) shareRunText(state._shareRunText);
       return;
     }
 
+    // Run 작성: 저장
     if (state.page === 'run_create') {
       submitRunCreate();
       return;
     }
 
+    // Menu -> page
     if (state.page === 'menu'){
       const key = MENU[clampIndex(state.menuIndex, MENU.length)]?.key;
-      if (key === 'runs') { state.page = 'runs'; refreshRuns(); return; }
-      return goTo(key || 'tracks');
+      if (key === 'runs') { state.page='runs'; refreshRuns(); return; }
+      state.page = key || 'tracks';
+      state.listIndex = 0;
+      render();
+      return;
     }
+
+    // Tracks -> detail
     if (state.page === 'tracks'){
       const list = state.tracks || [];
       const t = list[clampIndex(state.listIndex, list.length)];
       if (!t) return;
       state.selectedTrack = t;
-      state.selectedRun = null;
       state.voteArmed = false;
       state.page = 'detail';
-      return render();
+      render();
+      return;
     }
+
+    // Runs -> create
     if (state.page === 'runs'){
-      state.selectedRun = null;
       state.page = 'run_create';
-      return render();
+      render();
+      return;
     }
   }
 
   function toggleCheck() {
+    // ✅ CHECK 버튼 = 트랙 체크/해제
     let id = null;
     if (state.page === 'tracks') {
       const list = state.tracks || [];
@@ -816,46 +854,52 @@
     }
     if (id == null) return;
     id = Number(id);
-
     if (state.checkedTrackIds.has(id)) {
       state.checkedTrackIds.delete(id);
-      showToast('해제', `선택곡 ${state.checkedTrackIds.size}개`);
+      showToast('해제', `체크 ${state.checkedTrackIds.size}개`);
     } else {
       state.checkedTrackIds.add(id);
-      showToast('체크', `선택곡 ${state.checkedTrackIds.size}개`);
+      showToast('체크', `체크 ${state.checkedTrackIds.size}개`);
     }
     render();
   }
 
-  function attachClickWheelRotation() {
-    const wheel = document.querySelector('.wheel');
-    const center = document.getElementById('btnCenter');
-    if (!wheel || !center) return;
-    if (wheel.dataset.bound === '1') return;
+  // ===== (1) 휠 회전: pointer + touch 둘 다 지원 =====
+  function bindWheelRotation() {
+    const wheel = el.wheel;
+    if (!wheel || wheel.dataset.bound === '1') return;
     wheel.dataset.bound = '1';
 
+    const STEP_DEG = 22;
     let dragging = false;
     let lastAngle = 0;
     let accum = 0;
-    const STEP_DEG = 22;
+
+    function getPoint(ev){
+      if (ev.touches && ev.touches[0]) return ev.touches[0];
+      return ev;
+    }
 
     function angleFromEvent(ev) {
+      const p = getPoint(ev);
       const r = wheel.getBoundingClientRect();
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
-      const x = ev.clientX - cx;
-      const y = ev.clientY - cy;
+      const x = p.clientX - cx;
+      const y = p.clientY - cy;
       let a = Math.atan2(y, x) * 180 / Math.PI;
       if (a < 0) a += 360;
       return a;
     }
+
     function isOnOuterRing(ev) {
+      const p = getPoint(ev);
       const r = wheel.getBoundingClientRect();
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
-      const dx = ev.clientX - cx;
-      const dy = ev.clientY - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const dx = p.clientX - cx;
+      const dy = p.clientY - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
       const outer = r.width / 2;
       const inner = outer * 0.33;
       return dist <= outer && dist >= inner;
@@ -878,14 +922,22 @@
       }
     }
 
+    // 버튼/센터는 회전 드래그 대상에서 제외
+    function isButtonTarget(ev){
+      const t = ev.target;
+      if (!t || !t.closest) return false;
+      return !!t.closest('#btnCenter, #btnMenu, #btnPrev, #btnNext, #btnCheck, .wheelBtn, .center');
+    }
+
+    // pointer
     wheel.addEventListener('pointerdown', (ev) => {
-      if (ev.target === center || center.contains(ev.target) || ev.target.closest('.wheelBtn')) return;
+      if (isButtonTarget(ev)) return;
       if (!isOnOuterRing(ev)) return;
       ev.preventDefault();
       dragging = true;
       lastAngle = angleFromEvent(ev);
       accum = 0;
-      wheel.setPointerCapture(ev.pointerId);
+      try { wheel.setPointerCapture(ev.pointerId); } catch (_) {}
     });
 
     wheel.addEventListener('pointermove', (ev) => {
@@ -899,10 +951,38 @@
       accum += delta;
       while (accum >= STEP_DEG) { rotateStep(+1); accum -= STEP_DEG; }
       while (accum <= -STEP_DEG) { rotateStep(-1); accum += STEP_DEG; }
+      ev.preventDefault();
     });
 
     wheel.addEventListener('pointerup', () => { dragging = false; });
     wheel.addEventListener('pointercancel', () => { dragging = false; });
+
+    // touch fallback (iOS에서 pointer가 죽는 케이스 대비)
+    wheel.addEventListener('touchstart', (ev) => {
+      if (isButtonTarget(ev)) return;
+      if (!isOnOuterRing(ev)) return;
+      dragging = true;
+      lastAngle = angleFromEvent(ev);
+      accum = 0;
+      ev.preventDefault();
+    }, {passive:false});
+
+    wheel.addEventListener('touchmove', (ev) => {
+      if (!dragging) return;
+      if (!isOnOuterRing(ev)) return;
+      const a = angleFromEvent(ev);
+      let delta = a - lastAngle;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      lastAngle = a;
+      accum += delta;
+      while (accum >= STEP_DEG) { rotateStep(+1); accum -= STEP_DEG; }
+      while (accum <= -STEP_DEG) { rotateStep(-1); accum += STEP_DEG; }
+      ev.preventDefault();
+    }, {passive:false});
+
+    wheel.addEventListener('touchend', () => { dragging = false; }, {passive:false});
+    wheel.addEventListener('touchcancel', () => { dragging = false; }, {passive:false});
   }
 
   function bind() {
@@ -911,13 +991,13 @@
       node.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); fn(); }, { passive:false });
     };
 
-    tap(el.btnMenu, () => { state.voteArmed = false; state.page = 'menu'; render(); });
+    tap(el.btnMenu, goMenu);
     tap(el.btnPrev, moveUp);
     tap(el.btnNext, moveDown);
     tap(el.btnCenter, select);
-    tap(el.btnPlay, toggleCheck);
+    tap(el.btnCheck, toggleCheck);
 
-    attachClickWheelRotation();
+    bindWheelRotation();
 
     window.addEventListener('keydown', (e) => {
       const k = e.key;
@@ -932,9 +1012,9 @@
     window.addEventListener('offline', () => setTimeout(checkOnline, 300));
   }
 
+  // ===== 초기화 =====
   function tick() { el.clock.textContent = fmtClock(); }
 
-  // boot
   bind();
   tick();
   setInterval(tick, 1000 * 10);
