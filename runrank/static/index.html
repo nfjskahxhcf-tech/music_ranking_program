@@ -126,7 +126,7 @@
       height:100%;
       display:flex;
       flex-direction:column;
-      min-height:0; /* flex overflow 버그 방지 */
+      min-height:0;
       position:relative;
       z-index:1;
     }
@@ -160,7 +160,6 @@
       padding: 6px;
       background: rgba(0,0,0,.18);
       border: 1px solid rgba(255,255,255,.09);
-      scroll-behavior: auto;
       -webkit-overflow-scrolling: touch;
     }
 
@@ -262,6 +261,7 @@
       cursor:pointer;
       transition: transform .08s ease;
       z-index:3;
+      -webkit-tap-highlight-color: transparent;
     }
     .center:active{ transform: scale(.98); }
 
@@ -280,7 +280,7 @@
     .btnLabel.back{ left: 12px; }
     .btnLabel.next{ bottom: 12px; }
 
-    /* ✅ 핵심: 폰에서 누를 수 있는 hit area */
+    /* ✅ 폰에서 누를 수 있는 hit area */
     .hit{
       position:absolute;
       width: 44%;
@@ -388,7 +388,7 @@
     <div style="width:min(430px, 100%); opacity:.9; color:var(--muted); font-size:12px; line-height:1.55">
       <div style="font-weight:800; color:var(--text); margin-bottom:6px;">사용법</div>
       <div>· 휠 회전: 메뉴/리스트 이동</div>
-      <div>· OK(센터): 선택 / 상세 / 저장</div>
+      <div>· OK(센터): 선택</div>
       <div>· MENU: 메인 메뉴</div>
       <div>· BACK: 이전 화면</div>
     </div>
@@ -462,18 +462,34 @@
     return `<div class="titleRow"><h1>${title}</h1><div class="hint">${hint || ''}</div></div>`;
   }
 
-  // ✅ 핵심: active가 보이게 강제로 맞춤 (스크롤/높이 문제까지 같이 해결)
+  // ✅ 핵심: active가 항상 화면에 보이게
   function ensureActiveInView() {
     const active = el.view.querySelector('.item.active');
     if (!active) return;
     active.scrollIntoView({ block: 'nearest' });
   }
 
+  // ✅ 커버 키 전부 커버 (cover_url / album_art / image_url 포함)
   function pickCoverUrl(obj){
-    if(!obj) return '';
-    const c = obj.cover_url || obj.cover || obj.image || obj.album_cover || obj.artwork || obj.artwork_url || '';
+    if (!obj) return '';
+
+    const c =
+      obj.cover_url ||
+      obj.album_art ||
+      obj.image_url ||
+      obj.cover ||
+      obj.image ||
+      obj.album_cover ||
+      obj.artwork ||
+      obj.artwork_url ||
+      '';
+
     if (typeof c === 'string') return c;
-    if (c && typeof c === 'object') return c.url || c.small || c.medium || c.large || '';
+
+    if (c && typeof c === 'object') {
+      return c.url || c.small || c.medium || c.large || '';
+    }
+
     return '';
   }
 
@@ -521,7 +537,7 @@
     el.view.innerHTML = `
       ${renderHeader('RunnerSheep', 'iPod UI')}
       <div class="list">${items}</div>
-      <div class="kbd">휠/↑↓ 이동 · OK 선택 · MENU 메인 · BACK 뒤로</div>
+      <div class="kbd">휠 이동 · OK 선택 · MENU 메인 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -535,9 +551,12 @@
       const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
       const artist = safeText(t.artist || t.singer || t.by || '');
       const checked = state.checkedTrackIds.has(Number(t.id));
+      const img = cover
+        ? `<img src="${cover}" alt="" onerror="this.remove();">`
+        : '';
       return `
         <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${cover ? `<img src="${cover}" alt="">` : '♪'}</div>
+          <div class="thumb">${img || '♪'}</div>
           <div class="meta">
             <div class="name">${name}</div>
             <div class="sub">${artist}</div>
@@ -550,7 +569,7 @@
     el.view.innerHTML = `
       ${renderHeader('Tracks', 'Space=체크')}
       <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">tracks.json 확인</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · Space 체크 · OK 상세 · BACK 뒤로</div>
+      <div class="kbd">휠 이동 · OK 상세 · Space 체크 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -561,9 +580,12 @@
 
     const items = list.map((x, idx) => {
       const it = normalizeRankingItem(x);
+      const img = it.cover_url
+        ? `<img src="${it.cover_url}" alt="" onerror="this.remove();">`
+        : '';
       return `
         <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${it.cover_url ? `<img src="${it.cover_url}" alt="">` : '★'}</div>
+          <div class="thumb">${img || '★'}</div>
           <div class="meta">
             <div class="name">${it.title || '(제목 없음)'}</div>
             <div class="sub">${it.artist ? `${it.artist}` : ''}${it.score !== '' ? ` · ${it.score}` : ''}</div>
@@ -576,7 +598,7 @@
     el.view.innerHTML = `
       ${renderHeader('Ranking', '전체')}
       <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">아직 투표가 없어</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · OK 상세 · BACK 뒤로</div>
+      <div class="kbd">휠 이동 · OK 상세 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -587,9 +609,12 @@
 
     const items = list.map((x, idx) => {
       const it = normalizeRankingItem(x);
+      const img = it.cover_url
+        ? `<img src="${it.cover_url}" alt="" onerror="this.remove();">`
+        : '';
       return `
         <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${it.cover_url ? `<img src="${it.cover_url}" alt="">` : '🔥'}</div>
+          <div class="thumb">${img || '🔥'}</div>
           <div class="meta">
             <div class="name">${it.title || '(제목 없음)'}</div>
             <div class="sub">${it.artist ? `${it.artist}` : ''}${it.score !== '' ? ` · ${it.score}` : ''}</div>
@@ -602,7 +627,7 @@
     el.view.innerHTML = `
       ${renderHeader('Hot', '최근')}
       <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 데이터가 없어</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · OK 상세 · BACK 뒤로</div>
+      <div class="kbd">휠 이동 · OK 상세 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -629,8 +654,8 @@
 
     el.view.innerHTML = `
       ${renderHeader('Runs', '기록')}
-      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">OK로 추가(추후)</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · OK 상세 · BACK 뒤로</div>
+      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">BACK으로 나가기</div></div><div class="right"></div></div>'}</div>
+      <div class="kbd">휠 이동 · OK 상세 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -644,9 +669,6 @@
         <p>· OK: 선택/상세</p>
         <p>· MENU: 메인 메뉴</p>
         <p>· BACK: 이전 화면</p>
-        <div class="chipRow">
-          <div class="chip"><b>PWA</b> 오프라인 캐시</div>
-        </div>
       </div>
       <div class="kbd">BACK로 이전</div>
     `;
@@ -676,11 +698,14 @@
       const t = d.data || {};
       const cover = pickCoverUrl(t);
       const checked = state.checkedTrackIds.has(Number(t.id));
+      const img = cover
+        ? `<img src="${cover}" alt="" onerror="this.remove();">`
+        : '';
       el.view.innerHTML = `
         ${renderHeader('Track', checked ? '✓ 체크됨' : '')}
         <div class="detail">
           <div class="row">
-            <div class="cover">${cover ? `<img src="${cover}" alt="">` : '♪'}</div>
+            <div class="cover">${img || '♪'}</div>
             <div style="min-width:0">
               <h2>${safeText(t.title || t.name || t.track || 'Untitled')}</h2>
               <p>${safeText(t.artist || t.singer || t.by || '')}</p>
@@ -698,11 +723,14 @@
 
     if (d.type === 'rank') {
       const it = normalizeRankingItem(d.data || {});
+      const img = it.cover_url
+        ? `<img src="${it.cover_url}" alt="" onerror="this.remove();">`
+        : '';
       el.view.innerHTML = `
         ${renderHeader('Detail', 'Ranking')}
         <div class="detail">
           <div class="row">
-            <div class="cover">${it.cover_url ? `<img src="${it.cover_url}" alt="">` : '★'}</div>
+            <div class="cover">${img || '★'}</div>
             <div style="min-width:0">
               <h2>${it.title || '(제목 없음)'}</h2>
               <p>${it.artist || ''}</p>
@@ -931,6 +959,12 @@
     let accum = 0;
     const STEP = 18;
 
+    function isButtonTarget(ev) {
+      const t = ev.target;
+      if (!t || !t.closest) return false;
+      return !!t.closest('.center, .hit');
+    }
+
     function angleFromEvent(ev){
       const rect = el.ring.getBoundingClientRect();
       const cx = rect.left + rect.width/2;
@@ -942,11 +976,13 @@
     }
 
     function onStart(ev){
+      if (isButtonTarget(ev)) return;
       dragging = true;
       lastAngle = angleFromEvent(ev);
       accum = 0;
       ev.preventDefault();
     }
+
     function onMove(ev){
       if (!dragging) return;
       const a = angleFromEvent(ev);
@@ -960,6 +996,7 @@
       while (accum <= -STEP) { accum += STEP; moveSelection(-1); }
       ev.preventDefault();
     }
+
     function onEnd(ev){
       dragging = false;
       ev.preventDefault();
@@ -980,13 +1017,22 @@
       moveSelection(d);
     }, {passive:false});
 
-    // ✅ OK
+    // ✅ OK(센터): click이 씹히는 케이스 대비해서 touchend도 직접 바인딩
+    function onOk() { openSelected(); }
+
     el.center.addEventListener('click', (e)=>{
+      e.preventDefault();
       e.stopPropagation();
-      openSelected();
+      onOk();
     });
 
-    // ✅ MENU/BACK/PLAY/NEXT (폰 탭 100% 동작)
+    el.center.addEventListener('touchend', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      onOk();
+    }, {passive:false});
+
+    // ✅ MENU/BACK/PLAY/NEXT
     function bind(btn, fn){
       btn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); fn(); });
       btn.addEventListener('touchend', (e)=>{ e.preventDefault(); e.stopPropagation(); fn(); }, {passive:false});
@@ -994,7 +1040,7 @@
     bind(el.btnMenu, goMenu);
     bind(el.btnBack, goBack);
 
-    // play/next는 일단 “리스트 이동”으로 맵핑 (원하면 다른 기능으로 바꿔줌)
+    // play/next는 임시로 이동(원하면 다른 기능으로 바꿔줌)
     bind(el.btnPlay, ()=>moveSelection(-1));
     bind(el.btnNext, ()=>moveSelection(+1));
   })();
