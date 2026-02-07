@@ -1,938 +1,1006 @@
 <script>
 (() => {
+  // ----------------------
+  // ✅ Fail-safe: JS 에러를 화면에 띄워서 "하얀 화면" 방지
+  // ----------------------
+  function showFatal(err) {
+    try {
+      const target = document.querySelector('.screen') || document.body;
+      const box = document.createElement('div');
+      box.style.cssText = `
+        position:fixed; inset:8px; padding:10px;
+        border-radius:12px; background:rgba(0,0,0,.78);
+        border:1px solid rgba(255,255,255,.18);
+        color:#fff;
+        font:12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        overflow:auto; white-space:pre-wrap;
+        z-index:999999;
+      `;
+      box.textContent = "[JS ERROR]\n" + String(err && (err.stack || err.message || err));
+      target.appendChild(box);
+    } catch (_) {}
+  }
+  window.addEventListener('error', (e) => showFatal(e.error || e.message));
+  window.addEventListener('unhandledrejection', (e) => showFatal(e.reason));
+
+  // ----------------------
   // ✅ Service Worker: 정상 등록 + 업데이트 체크
+  // ----------------------
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
         const reg = await navigator.serviceWorker.register('/service-worker.js');
-        try { await reg.update(); } catch (e) {}
-      } catch (e) {}
+        try { await reg.update(); } catch (_) {}
+      } catch (_) {}
     });
   }
 
-  const state = {
-    page: 'menu',   // menu | tracks | ranking | hot | runs | run_new | settings | about | detail
-    menuIndex: 0,
-    listIndex: 0,
-    tracks: [],
-    ranking: [],
-    hot: [],
-    runs: [],
-    selectedTrack: null,
-    checkedTrackIds: new Set(),
-    online: true,
-  };
+  try {
+    // ----------------------
+    // ✅ State
+    // ----------------------
+    const state = {
+      page: 'menu',   // menu | tracks | ranking | hot | runs | run_new | settings | about | detail
+      menuIndex: 0,
+      listIndex: 0,
+      tracks: [],
+      ranking: [],
+      hot: [],
+      runs: [],
+      selectedTrack: null,
+      checkedTrackIds: new Set(),
+      online: true,
+    };
 
-  const MENU = [
-    { key: 'tracks',   label: 'Tracks',   hint: '곡 목록 / 추천' },
-    { key: 'ranking',  label: 'Ranking',  hint: '전체 랭킹' },
-    { key: 'hot',      label: 'Hot',      hint: '최근 인기' },
-    { key: 'runs',     label: 'Runs',     hint: '런닝 기록 + 사진' },
-    { key: 'settings', label: 'Settings', hint: '닉네임 / 옵션' },
-    { key: 'about',    label: 'About',    hint: '앱 정보' },
-  ];
+    const MENU = [
+      { key: 'tracks',   label: 'Tracks',   hint: '곡 목록 / 추천' },
+      { key: 'ranking',  label: 'Ranking',  hint: '전체 랭킹' },
+      { key: 'hot',      label: 'Hot',      hint: '최근 인기' },
+      { key: 'runs',     label: 'Runs',     hint: '런닝 기록 + 사진' },
+      { key: 'settings', label: 'Settings', hint: '닉네임 / 옵션' },
+      { key: 'about',    label: 'About',    hint: '앱 정보' },
+    ];
 
-  const el = {
-    view: document.getElementById('view'),
-    toast: document.getElementById('toast'),
-    toastTitle: document.getElementById('toastTitle'),
-    toastSub: document.getElementById('toastSub'),
-    pill: document.getElementById('pillState'),
-    clock: document.getElementById('clock'),
-    btnMenu: document.getElementById('btnMenu'),
-    btnPrev: document.getElementById('btnPrev'),
-    btnNext: document.getElementById('btnNext'),
-    btnPlay: document.getElementById('btnPlay'),
-    btnCenter: document.getElementById('btnCenter'),
-  };
+    // ----------------------
+    // ✅ DOM (없으면 죽지 않게)
+    // ----------------------
+    const el = {
+      view: document.getElementById('view'),
+      toast: document.getElementById('toast'),
+      toastTitle: document.getElementById('toastTitle'),
+      toastSub: document.getElementById('toastSub'),
+      pill: document.getElementById('pillState'),
+      clock: document.getElementById('clock'),
+      btnMenu: document.getElementById('btnMenu'),
+      btnPrev: document.getElementById('btnPrev'),
+      btnNext: document.getElementById('btnNext'),
+      btnPlay: document.getElementById('btnPlay'),
+      btnCenter: document.getElementById('btnCenter'),
+    };
 
-  function fmtClock(d = new Date()) {
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
-  }
+    // 필수 컨테이너(view)가 없으면 여기서 원인 표시
+    if (!el.view) {
+      showFatal("필수 DOM #view 가 없음. index.html에 id='view' 요소가 있는지 확인해.");
+      return;
+    }
 
-  function showToast(title, sub = '') {
-    el.toastTitle.textContent = title;
-    el.toastSub.textContent = sub;
-    el.toast.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => el.toast.classList.remove('show'), 1800);
-  }
+    // ----------------------
+    // ✅ Utils
+    // ----------------------
+    function fmtClock(d = new Date()) {
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+    function tick() {
+      if (el.clock) el.clock.textContent = fmtClock();
+    }
 
-  function safeText(s) { return (s ?? '').toString(); }
+    function showToast(title, sub = '') {
+      // toast UI 없으면 콘솔/무시
+      try {
+        if (!el.toast || !el.toastTitle || !el.toastSub) return;
+        el.toastTitle.textContent = title;
+        el.toastSub.textContent = sub;
+        el.toast.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => el.toast.classList.remove('show'), 1800);
+      } catch (_) {}
+    }
 
-  function escapeHtml(s) {
-    return String(s ?? '').replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-  }
-  function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+    function safeText(s) { return (s ?? '').toString(); }
 
-  function getNick() { return localStorage.getItem('runrank_nick') || ''; }
-  function setNick(v) { localStorage.setItem('runrank_nick', v); }
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+    function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
 
-  // ----------------------
-  // ✅ Online 체크 (OFFLINE 깜빡임 방지: 2연속 실패 시 OFFLINE)
-  // ----------------------
-  let onlineFailStreak = 0;
+    function getNick() { return localStorage.getItem('runrank_nick') || ''; }
+    function setNick(v) { localStorage.setItem('runrank_nick', v); }
 
-  async function checkOnline() {
-    try {
-      const r = await fetch(`/api/health?ts=${Date.now()}`, {
-        cache: 'no-store',
-        credentials: 'same-origin'
-      });
-      if (r.ok) {
-        onlineFailStreak = 0;
-        state.online = true;
-      } else {
+    function pickCoverUrl(x) {
+      return x?.cover_url || x?.album_art || x?.image_url || '';
+    }
+
+    function clampIndex(i, n) {
+      if (n <= 0) return 0;
+      return (i % n + n) % n;
+    }
+
+    function fmtDur(sec) {
+      sec = Number(sec || 0);
+      const m = Math.floor(sec / 60);
+      const s = sec - m * 60;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    // ----------------------
+    // ✅ Online 체크 (OFFLINE 깜빡임 방지: 2연속 실패 시 OFFLINE)
+    // ----------------------
+    let onlineFailStreak = 0;
+
+    async function checkOnline() {
+      try {
+        const r = await fetch(`/api/health?ts=${Date.now()}`, {
+          cache: 'no-store',
+          credentials: 'same-origin'
+        });
+        if (r.ok) {
+          onlineFailStreak = 0;
+          state.online = true;
+        } else {
+          onlineFailStreak += 1;
+          if (onlineFailStreak >= 2) state.online = false;
+        }
+      } catch {
         onlineFailStreak += 1;
         if (onlineFailStreak >= 2) state.online = false;
       }
-    } catch {
-      onlineFailStreak += 1;
-      if (onlineFailStreak >= 2) state.online = false;
-    }
-    render();
-  }
-
-  function startOnlineMonitor() {
-    checkOnline();
-    setInterval(checkOnline, 15000);
-  }
-
-  // ----------------------
-  // ✅ Spotify (PKCE) - 최소 골격
-  // ----------------------
-  function getSpotifyClientId() { return localStorage.getItem('runrank_spotify_client_id') || ''; }
-  function setSpotifyClientId(v) { localStorage.setItem('runrank_spotify_client_id', v); }
-  function getSpotifyToken() { return localStorage.getItem('runrank_spotify_access_token') || ''; }
-  function setSpotifyToken(v) { localStorage.setItem('runrank_spotify_access_token', v); }
-
-  async function sha256(str) {
-    const enc = new TextEncoder();
-    const data = enc.encode(str);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    return new Uint8Array(hash);
-  }
-  function base64url(bytes) {
-    let str = '';
-    bytes.forEach(b => str += String.fromCharCode(b));
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
-  }
-  function randString(len = 64) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-    let out = '';
-    const arr = crypto.getRandomValues(new Uint8Array(len));
-    for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
-    return out;
-  }
-
-  async function spotifyLogin() {
-    const clientId = getSpotifyClientId().trim();
-    if (!clientId) return showToast('Spotify', 'Settings에 Client ID부터 넣어');
-
-    const verifier = randString(64);
-    const challenge = base64url(await sha256(verifier));
-    const stateStr = randString(16);
-    localStorage.setItem('runrank_spotify_verifier', verifier);
-    localStorage.setItem('runrank_spotify_oauth_state', stateStr);
-
-    const redirectUri = window.location.origin + '/';
-    const scope = [
-      'user-read-email',
-      'user-read-private',
-      'playlist-read-private',
-      'playlist-read-collaborative'
-    ].join(' ');
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      response_type: 'code',
-      redirect_uri: redirectUri,
-      code_challenge_method: 'S256',
-      code_challenge: challenge,
-      state: stateStr,
-      scope,
-    });
-    window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
-  }
-
-  async function handleSpotifyCallback() {
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get('code');
-    const stateStr = url.searchParams.get('state');
-    const err = url.searchParams.get('error');
-
-    if (err) {
-      showToast('Spotify 실패', err);
-      url.searchParams.delete('error');
-      window.history.replaceState({}, '', url.toString());
-      return;
-    }
-    if (!code) return;
-
-    const expectedState = localStorage.getItem('runrank_spotify_oauth_state') || '';
-    const verifier = localStorage.getItem('runrank_spotify_verifier') || '';
-    const clientId = getSpotifyClientId().trim();
-    const redirectUri = window.location.origin + '/';
-
-    if (!clientId || !verifier || !expectedState || expectedState !== stateStr) {
-      showToast('Spotify', 'state/verifier 불일치');
-      return;
+      render();
     }
 
-    try {
-      const body = new URLSearchParams({
+    function startOnlineMonitor() {
+      checkOnline();
+      setInterval(checkOnline, 15000);
+      window.addEventListener('online', () => setTimeout(checkOnline, 300));
+      window.addEventListener('offline', () => setTimeout(checkOnline, 300));
+    }
+
+    // ----------------------
+    // ✅ Spotify (PKCE)
+    // ----------------------
+    function getSpotifyClientId() { return localStorage.getItem('runrank_spotify_client_id') || ''; }
+    function setSpotifyClientId(v) { localStorage.setItem('runrank_spotify_client_id', v); }
+    function getSpotifyToken() { return localStorage.getItem('runrank_spotify_access_token') || ''; }
+    function setSpotifyToken(v) { localStorage.setItem('runrank_spotify_access_token', v); }
+
+    async function sha256(str) {
+      const enc = new TextEncoder();
+      const data = enc.encode(str);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return new Uint8Array(hash);
+    }
+    function base64url(bytes) {
+      let str = '';
+      bytes.forEach(b => str += String.fromCharCode(b));
+      return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+    }
+    function randString(len = 64) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+      let out = '';
+      const arr = crypto.getRandomValues(new Uint8Array(len));
+      for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
+      return out;
+    }
+
+    async function spotifyLogin() {
+      const clientId = getSpotifyClientId().trim();
+      if (!clientId) return showToast('Spotify', 'Settings에 Client ID부터 넣어');
+
+      const verifier = randString(64);
+      const challenge = base64url(await sha256(verifier));
+      const stateStr = randString(16);
+      localStorage.setItem('runrank_spotify_verifier', verifier);
+      localStorage.setItem('runrank_spotify_oauth_state', stateStr);
+
+      const redirectUri = window.location.origin + '/';
+      const scope = [
+        'user-read-email',
+        'user-read-private',
+        'playlist-read-private',
+        'playlist-read-collaborative'
+      ].join(' ');
+
+      const params = new URLSearchParams({
         client_id: clientId,
-        grant_type: 'authorization_code',
-        code,
+        response_type: 'code',
         redirect_uri: redirectUri,
-        code_verifier: verifier,
+        code_challenge_method: 'S256',
+        code_challenge: challenge,
+        state: stateStr,
+        scope,
       });
+      window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+    }
 
-      const res = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error_description || data?.error || String(res.status));
-      if (data?.access_token) {
-        setSpotifyToken(data.access_token);
-        showToast('Spotify', '연동 완료');
+    async function handleSpotifyCallback() {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');
+      const stateStr = url.searchParams.get('state');
+      const err = url.searchParams.get('error');
+
+      if (err) {
+        showToast('Spotify 실패', err);
+        url.searchParams.delete('error');
+        window.history.replaceState({}, '', url.toString());
+        return;
       }
-    } catch (e) {
-      showToast('Spotify 실패', String(e.message || e).slice(0, 80));
-    } finally {
-      url.searchParams.delete('code');
-      url.searchParams.delete('state');
-      window.history.replaceState({}, '', url.toString());
-    }
-  }
-
-  function pickCoverUrl(x) {
-    return x?.cover_url || x?.album_art || x?.image_url || '';
-  }
-
-  async function apiGet(path) {
-    const res = await fetch(path, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
-  }
-
-  async function refreshAll() {
-    try {
-      const [tracks, ranking, hot] = await Promise.all([
-        apiGet('/api/tracks'),
-        apiGet('/api/ranking'),
-        apiGet('/api/hot_ranking'),
-      ]);
-      state.tracks = Array.isArray(tracks) ? tracks : (tracks?.tracks || []);
-      state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
-      state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
-      state.online = true;
-      render();
-    } catch (e) {
-      showToast('오프라인', '네트워크를 확인해줘');
-      state.online = false;
-      render();
-    }
-  }
-
-  async function refreshRuns() {
-    try {
-      const nick = getNick();
-      const qs = nick ? `?user=${encodeURIComponent(nick)}` : '';
-      const runs = await apiGet('/api/runs' + qs);
-      state.runs = Array.isArray(runs) ? runs : [];
-      render();
-    } catch (e) {
-      showToast('Runs 실패', '서버 응답이 이상해');
-    }
-  }
-
-  async function submit(trackId) {
-    try {
-      const body = { track_id: Number(trackId), user: getNick() || null };
-      const res = await fetch('/api/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
-      showToast('추천 완료', '랭킹에 반영됐어');
-
-      const [ranking, hot] = await Promise.all([
-        apiGet('/api/ranking'),
-        apiGet('/api/hot_ranking'),
-      ]);
-      state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
-      state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
-      render();
-    } catch (e) {
-      showToast('실패', String(e.message || '서버 오류').slice(0, 80));
-    }
-  }
-
-  function clampIndex(i, n) {
-    if (n <= 0) return 0;
-    return (i % n + n) % n;
-  }
-
-  function renderHeader(title, hint) {
-    return `
-      <div class="titleRow">
-        <h1>${title}</h1>
-        <div class="hint">${hint || ''}</div>
-      </div>
-    `;
-  }
-
-  function normalizeRankingItem(x) {
-    const title = safeText(x?.title || x?.track || x?.name || x?.[0] || '');
-    const score = x?.votes ?? x?.score ?? x?.count ?? x?.[1] ?? '';
-    const artist = safeText(x?.artist || x?.by || x?.[2] || '');
-    const cover_url = pickCoverUrl(x);
-    return { title, artist, score, cover_url };
-  }
-
-  function fmtDur(sec) {
-    sec = Number(sec || 0);
-    const m = Math.floor(sec / 60);
-    const s = sec - m * 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-  }
-
-  function render() {
-    el.pill.textContent = state.online ? 'ONLINE' : 'OFFLINE';
-    el.pill.style.opacity = state.online ? '1' : '0.75';
-
-    if (state.page === 'detail') return renderDetail();
-    if (state.page === 'run_new') return renderRunNew();
-
-    if (state.page === 'menu') return renderMenu();
-    if (state.page === 'tracks') return renderTracks();
-    if (state.page === 'ranking') return renderRanking();
-    if (state.page === 'hot') return renderHot();
-    if (state.page === 'runs') return renderRuns();
-    if (state.page === 'settings') return renderSettings();
-    if (state.page === 'about') return renderAbout();
-
-    state.page = 'menu';
-    renderMenu();
-  }
-
-  function renderMenu() {
-    state.menuIndex = clampIndex(state.menuIndex, MENU.length);
-    const items = MENU.map((m, idx) => `
-      <div class="item ${idx === state.menuIndex ? 'active' : ''}" data-idx="${idx}">
-        <div class="thumb">⌁</div>
-        <div class="meta">
-          <div class="name">${m.label}</div>
-          <div class="sub">${m.hint}</div>
-        </div>
-        <div class="right">›</div>
-      </div>
-    `).join('');
-
-    el.view.innerHTML = `
-      ${renderHeader('RunnerSheep', 'iPod UI')}
-      <div class="list">${items}</div>
-      <div class="kbd">조작: <code>↑</code><code>↓</code> 이동 · <code>Enter</code> 선택 · <code>Esc</code> 뒤로 · <code>Space</code> 체크</div>
-    `;
-  }
-
-  function renderTracks() {
-    const list = state.tracks || [];
-    state.listIndex = clampIndex(state.listIndex, list.length);
-
-    const items = list.map((t, idx) => {
-      const cover = pickCoverUrl(t);
-      const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
-      const artist = safeText(t.artist || t.singer || t.by || '');
-      const checked = state.checkedTrackIds.has(Number(t.id));
-      return `
-        <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${cover ? `<img alt="" src="${cover}">` : '♪'}</div>
-          <div class="meta">
-            <div class="name">${escapeHtml(name)}</div>
-            <div class="sub">${escapeHtml(artist || ' ')}</div>
-          </div>
-          <div class="right">${checked ? '✓' : '+'}</div>
-        </div>
-      `;
-    }).join('');
-
-    el.view.innerHTML = `
-      ${renderHeader('Tracks', '▶︎/⏸=체크')}
-      <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">/api/tracks 확인</div></div></div>'}</div>
-      <div class="kbd"><code>Enter</code> 상세 · <code>Space</code> 체크/해제 · <code>Esc</code> 메뉴</div>
-    `;
-  }
-
-  function renderRanking() {
-    const list = (state.ranking || []).map(normalizeRankingItem);
-    state.listIndex = clampIndex(state.listIndex, list.length);
-
-    const items = list.map((r, idx) => `
-      <div class="item ${idx === state.listIndex ? 'active' : ''}">
-        <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : String(idx + 1)}</div>
-        <div class="meta">
-          <div class="name">${escapeHtml(r.title || '—')}</div>
-          <div class="sub">${escapeHtml(r.artist || ' ')}</div>
-        </div>
-        <div class="right">${escapeHtml(String(r.score))}</div>
-      </div>
-    `).join('');
-
-    el.view.innerHTML = `
-      ${renderHeader('Ranking', '전체')}
-      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">추천을 먼저 해봐</div></div></div>'}</div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
-    `;
-  }
-
-  function renderHot() {
-    const list = (state.hot || []).map(normalizeRankingItem);
-    state.listIndex = clampIndex(state.listIndex, list.length);
-
-    const items = list.map((r, idx) => `
-      <div class="item ${idx === state.listIndex ? 'active' : ''}">
-        <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : '🔥'}</div>
-        <div class="meta">
-          <div class="name">${escapeHtml(r.title || '—')}</div>
-          <div class="sub">${escapeHtml(r.artist || ' ')}</div>
-        </div>
-        <div class="right">${escapeHtml(String(r.score))}</div>
-      </div>
-    `).join('');
-
-    el.view.innerHTML = `
-      ${renderHeader('Hot', '최근')}
-      <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 추천이 없어</div></div></div>'}</div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
-    `;
-  }
-
-  function renderRuns() {
-    const runs = state.runs || [];
-    state.listIndex = clampIndex(state.listIndex, runs.length);
-
-    const items = runs.map((r, idx) => {
-      const tracks = Array.isArray(r.tracks) ? r.tracks : [];
-      const t0 = tracks[0] || r.track;
-      const cover = pickCoverUrl(r.photo_url ? { cover_url: r.photo_url } : t0);
-      const baseTitle = t0 ? `${t0.title}` : '—';
-      const title = tracks.length > 1 ? `${baseTitle} (+${tracks.length - 1})` : baseTitle;
-      const sub = `${r.date_label} · ${r.distance_km}km · ${fmtDur(r.duration_sec)} · ${r.pace}`;
-      return `
-        <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${r.photo_url ? `<img alt="" src="${r.photo_url}">` : (cover ? `<img alt="" src="${cover}">` : '🏃')}</div>
-          <div class="meta">
-            <div class="name">${escapeHtml(title)}</div>
-            <div class="sub">${escapeHtml(sub)}</div>
-          </div>
-          <div class="right">›</div>
-        </div>
-      `;
-    }).join('');
-
-    el.view.innerHTML = `
-      ${renderHeader('Runs', '센터=새 기록')}
-      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">센터(SELECT)로 첫 기록 추가</div></div></div>'}</div>
-      <div class="kbd"><code>Enter</code> 새 기록 · <code>Esc</code> 메뉴</div>
-    `;
-  }
-
-  function renderRunNew() {
-    const nick = getNick();
-    const checkedIds = Array.from(state.checkedTrackIds);
-    const checkedInfos = checkedIds.map(id => {
-      const t = (state.tracks || []).find(x => Number(x.id) === Number(id));
-      const title = safeText(t?.title || `Track ${id}`);
-      const artist = safeText(t?.artist || '');
-      return `${escapeHtml(title)}${artist ? ' - ' + escapeHtml(artist) : ''}`;
-    });
-
-    el.view.innerHTML = `
-      ${renderHeader('New Run', '사진 업로드')}
-      <div class="detail">
-        <div>
-          <label>user (닉네임)</label>
-          <input id="run_user" value="${escapeAttr(nick)}" placeholder="닉네임 먼저 설정 추천" />
-        </div>
-
-        <div class="grid2">
-          <div>
-            <label>distance_km</label>
-            <input id="run_dist" type="number" step="0.01" placeholder="예: 5" />
-          </div>
-          <div>
-            <label>pace (mm:ss / km)</label>
-            <input id="run_pace" placeholder="예: 5:30" />
-          </div>
-        </div>
-
-        <div class="grid2">
-          <div>
-            <label>date_label</label>
-            <input id="run_date" placeholder="예: 2026-02-05" />
-          </div>
-          <div>
-            <label>tracks (체크한 곡)</label>
-            <div style="display:flex; gap:8px; align-items:center;">
-              <div style="flex:1; font-size:11px; color:var(--muted); line-height:1.35;">
-                ${checkedInfos.length ? `${checkedInfos.length}곡 선택됨` : 'Tracks 메뉴에서 Space 눌러 체크해줘'}
-              </div>
-              <button class="btn" id="clear_checked" style="white-space:nowrap;">초기화</button>
-            </div>
-            <div style="margin-top:6px; max-height:72px; overflow:auto; font-size:11px;">
-              ${checkedInfos.length ? checkedInfos.map(s => `<div style="padding:2px 0; opacity:.92;">• ${s}</div>`).join('') : ''}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label>photo</label>
-          <label class="btn" for="run_photo" style="display:inline-flex; width:100%; justify-content:center;">
-            사진 선택하기
-          </label>
-          <input id="run_photo" type="file" accept="image/*" style="display:none;" />
-          <div id="photo_name" style="margin-top:6px;font-size:11px;color:var(--muted);">선택된 파일 없음</div>
-        </div>
-
-        <div class="cta">
-          <button class="btn" id="run_cancel">취소</button>
-          <button class="btn primary" id="run_submit">저장</button>
-        </div>
-      </div>
-      <div class="kbd"><code>Esc</code> 취소</div>
-    `;
-
-    document.getElementById('run_cancel').addEventListener('click', () => {
-      state.page = 'runs';
-      render();
-    });
-
-    const photoInput = document.getElementById('run_photo');
-    document.getElementById('clear_checked').addEventListener('click', () => {
-      state.checkedTrackIds.clear();
-      showToast('초기화', '선택곡 0개');
-      render();
-    });
-    photoInput.addEventListener('change', () => {
-      const f = photoInput.files?.[0];
-      document.getElementById('photo_name').textContent = f ? `선택됨: ${f.name}` : '선택된 파일 없음';
-    });
-
-    document.getElementById('run_submit').addEventListener('click', async () => {
-      const user = document.getElementById('run_user').value.trim();
-      const distance_km_raw = document.getElementById('run_dist').value.trim();
-      const paceStr = document.getElementById('run_pace').value.trim();
-      const date_label = document.getElementById('run_date').value.trim() || new Date().toISOString().slice(0, 10);
-      const track_ids = Array.from(state.checkedTrackIds);
-      const photo = document.getElementById('run_photo').files?.[0] || null;
-
-      if (!user) return showToast('에러', 'user(닉네임) 필요');
-
-      const dist = Number(distance_km_raw);
-      if (!dist || dist <= 0) return showToast('에러', 'distance_km 필요');
-
-      const m = paceStr.match(/^(\d+)\s*:\s*([0-5]?\d)$/);
-      if (!m) return showToast('에러', 'pace 형식은 5:30 처럼 mm:ss');
-
-      const pace_sec = Number(m[1]) * 60 + Number(m[2]);
-      if (pace_sec <= 0) return showToast('에러', 'pace 필요');
-
-      const duration_sec = Math.round(dist * pace_sec);
-
-      const fd = new FormData();
-      fd.append('user', user);
-      fd.append('distance_km', String(dist));
-      fd.append('duration_sec', String(duration_sec));
-      fd.append('date_label', date_label);
-      if (track_ids.length) fd.append('track_ids', JSON.stringify(track_ids));
-      if (photo) fd.append('photo', photo);
-
-      try {
-        const res = await fetch('/api/runs', { method: 'POST', body: fd });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
-
-        const vote = data?.vote;
-        if (vote?.did_vote) {
-          showToast('저장+투표', `pace: ${data.pace} · ${vote.inserted}곡 투표됨`);
-        } else if (vote?.already_voted) {
-          showToast('저장됨', `pace: ${data.pace} · 오늘은 이미 투표했어`);
-        } else {
-          showToast('저장됨', `pace: ${data.pace}`);
-        }
-
-        if (vote?.did_vote) state.checkedTrackIds.clear();
-        state.page = 'runs';
-        await refreshRuns();
-      } catch (e) {
-        showToast('실패', String(e.message || '서버 오류').slice(0, 80));
-      }
-    });
-  }
-
-  function renderSettings() {
-    const nick = getNick();
-    const spClientId = getSpotifyClientId();
-    const spConnected = !!getSpotifyToken();
-
-    el.view.innerHTML = `
-      ${renderHeader('Settings', '닉네임')}
-      <div class="detail">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-          <div style="font-weight:900; font-size:13px;">Nickname</div>
-          <div style="font-size:11px; color: var(--muted);">추천/런 기록에 사용</div>
-        </div>
-
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input id="nickInput" value="${escapeAttr(nick)}" placeholder="예) joon" style="flex:1;">
-          <button class="btn primary" id="saveNick">저장</button>
-        </div>
-
-        <div style="margin-top:8px; font-size:11px; color: var(--muted); line-height:1.35;">
-          커버 자동 채우기: 아래 버튼 누르면 커버 없는 트랙 일부를 서버가 iTunes로 찾아 캐시에 저장함.
-        </div>
-
-        <div class="cta">
-          <button class="btn" id="fillCovers">커버 채우기</button>
-          <button class="btn" id="refreshBtn">새로고침</button>
-        </div>
-
-        <div class="cta">
-          <button class="btn" id="clearNick">닉네임 지우기</button>
-          <button class="btn" id="loadRuns">내 Runs 불러오기</button>
-        </div>
-
-        <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.10);"></div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-          <div style="font-weight:900; font-size:13px;">Spotify</div>
-          <div style="font-size:11px; color: var(--muted);">PKCE 연동</div>
-        </div>
-
-        <div style="margin-top:6px; font-size:11px; color: var(--muted); line-height:1.35;">
-          Redirect URI는 <b style="color:var(--text)">${escapeHtml(window.location.origin + '/')}</b> 로 등록해야 함.
-        </div>
-
-        <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
-          <input id="spClientId" value="${escapeAttr(spClientId)}" placeholder="Spotify Client ID" style="flex:1;" />
-          <button class="btn primary" id="spSave">저장</button>
-        </div>
-
-        <div class="cta">
-          <button class="btn ${spConnected ? 'primary' : ''}" id="spConnect">${spConnected ? '연동됨(다시)' : 'Spotify 연동'}</button>
-          <button class="btn" id="spDisconnect">연동 해제</button>
-        </div>
-      </div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
-    `;
-
-    document.getElementById('saveNick').addEventListener('click', () => {
-      const v = document.getElementById('nickInput').value.trim();
-      setNick(v);
-      showToast('저장됨', v ? `닉네임: ${v}` : '비워뒀어');
-      render();
-    });
-
-    document.getElementById('clearNick').addEventListener('click', () => {
-      setNick('');
-      showToast('삭제됨', '닉네임 제거');
-      render();
-    });
-
-    document.getElementById('refreshBtn').addEventListener('click', async () => {
-      showToast('갱신', '데이터 불러오는 중…');
-      await refreshAll();
-    });
-
-    document.getElementById('fillCovers').addEventListener('click', async () => {
-      try {
-        showToast('커버', '찾는 중…');
-        const t = await apiGet('/api/tracks?resolve_missing=1&resolve_limit=10');
-        state.tracks = Array.isArray(t) ? t : [];
-        showToast('완료', 'Tracks에 반영됨');
-        render();
-      } catch (e) {
-        showToast('실패', '커버 채우기 오류');
-      }
-    });
-
-    document.getElementById('loadRuns').addEventListener('click', async () => {
-      state.page = 'runs';
-      await refreshRuns();
-    });
-
-    document.getElementById('spSave').addEventListener('click', () => {
-      setSpotifyClientId(document.getElementById('spClientId').value.trim());
-      showToast('Spotify', 'Client ID 저장됨');
-    });
-    document.getElementById('spConnect').addEventListener('click', () => spotifyLogin());
-    document.getElementById('spDisconnect').addEventListener('click', () => {
-      setSpotifyToken('');
-      localStorage.removeItem('runrank_spotify_verifier');
-      localStorage.removeItem('runrank_spotify_oauth_state');
-      showToast('Spotify', '연동 해제');
-      render();
-    });
-  }
-
-  function renderAbout() {
-    el.view.innerHTML = `
-      ${renderHeader('About', 'RunRank')}
-      <div class="detail">
-        <div style="font-weight:900;">이번 업데이트</div>
-        <div style="font-size:11px; color: var(--muted); line-height:1.45;">
-          ✅ 앨범커버: 서버 캐시 + iTunes 검색<br/>
-          ✅ Runs: 런닝 기록 + 사진 업로드<br/>
-          <br/>
-          API:
-          <span style="color: var(--accent);">/api/tracks</span>,
-          <span style="color: var(--accent);">/api/covers/resolve_all</span>,
-          <span style="color: var(--accent);">/api/runs</span>
-        </div>
-        <div style="margin-top:auto; display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="btn">v0.4</span>
-          <span class="btn">Covers</span>
-          <span class="btn">Runs+Photo</span>
-        </div>
-      </div>
-      <div class="kbd"><code>Esc</code> 메뉴</div>
-    `;
-  }
-
-  function renderDetail() {
-    const t = state.selectedTrack;
-    if (!t) { state.page = 'tracks'; return renderTracks(); }
-
-    const cover = pickCoverUrl(t);
-    const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
-    const artist = safeText(t.artist || t.singer || t.by || '');
-    const id = t.id ?? t.track_id ?? t.trackId;
-
-    el.view.innerHTML = `
-      ${renderHeader('Track', '상세')}
-      <div class="detail">
-        <div style="display:flex; gap:10px; align-items:center;">
-          <div class="thumb" style="width:56px;height:56px;border-radius:12px;">
-            ${cover ? `<img alt="" src="${cover}">` : '♪'}
-          </div>
-          <div style="min-width:0;">
-            <div style="font-weight:900; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}</div>
-            <div style="font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(artist || ' ')}</div>
-          </div>
-        </div>
-
-        <div style="font-size:11px; color: var(--muted); line-height:1.45;">
-          <div>Track ID: <b style="color:var(--text)">${escapeHtml(String(id))}</b></div>
-          <div>Space : 체크/해제</div>
-        </div>
-
-        <div class="cta">
-          <button class="btn" id="backBtn">뒤로</button>
-          <button class="btn primary" id="voteBtn">추천(Like)</button>
-        </div>
-      </div>
-      <div class="kbd"><code>Space</code> 체크 · <code>Esc</code> 뒤로</div>
-    `;
-
-    document.getElementById('backBtn').addEventListener('click', () => goBack());
-    document.getElementById('voteBtn').addEventListener('click', () => submit(id));
-  }
-
-  function goTo(page) {
-    state.page = page;
-    state.listIndex = 0;
-    render();
-  }
-
-  function goBack() {
-    if (state.page === 'detail') { state.page = 'tracks'; return render(); }
-    if (state.page === 'run_new') { state.page = 'runs'; return render(); }
-    state.page = 'menu';
-    render();
-  }
-
-  function moveUp() {
-    if (state.page === 'menu') state.menuIndex--;
-    else state.listIndex--;
-    render();
-  }
-  function moveDown() {
-    if (state.page === 'menu') state.menuIndex++;
-    else state.listIndex++;
-    render();
-  }
-
-  function select() {
-    if (state.page === 'menu') {
-      const key = MENU[clampIndex(state.menuIndex, MENU.length)]?.key;
-      if (key === 'runs') { state.page = 'runs'; refreshRuns(); return; }
-      return goTo(key || 'tracks');
-    }
-    if (state.page === 'tracks') {
-      const list = state.tracks || [];
-      const t = list[clampIndex(state.listIndex, list.length)];
-      if (!t) return;
-      state.selectedTrack = t;
-      state.page = 'detail';
-      return render();
-    }
-    if (state.page === 'runs') {
-      state.page = 'run_new';
-      return render();
-    }
-  }
-
-  function toggleCheck() {
-    let id = null;
-
-    if (state.page === 'tracks') {
-      const list = state.tracks || [];
-      const t = list[clampIndex(state.listIndex, list.length)];
-      id = t?.id ?? t?.track_id ?? t?.trackId;
-    } else if (state.page === 'detail') {
-      id = state.selectedTrack?.id ?? state.selectedTrack?.track_id ?? state.selectedTrack?.trackId;
-    }
-
-    if (id == null) return;
-    id = Number(id);
-
-    if (state.checkedTrackIds.has(id)) {
-      state.checkedTrackIds.delete(id);
-      showToast('해제', `선택곡 ${state.checkedTrackIds.size}개`);
-    } else {
-      state.checkedTrackIds.add(id);
-      showToast('체크', `선택곡 ${state.checkedTrackIds.size}개`);
-    }
-    render();
-  }
-
-  function attachClickWheelRotation() {
-    const wheel = document.querySelector('.wheel');
-    const center = document.getElementById('btnCenter');
-    if (!wheel || !center) return;
-    if (wheel.dataset.bound === '1') return;
-    wheel.dataset.bound = '1';
-
-    let dragging = false;
-    let lastAngle = 0;
-    let accum = 0;
-    const STEP_DEG = 22;
-
-    function angleFromEvent(ev) {
-      const r = wheel.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const x = ev.clientX - cx;
-      const y = ev.clientY - cy;
-      let a = Math.atan2(y, x) * 180 / Math.PI;
-      if (a < 0) a += 360;
-      return a;
-    }
-
-    function isOnOuterRing(ev) {
-      const r = wheel.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const dx = ev.clientX - cx;
-      const dy = ev.clientY - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const outer = r.width / 2;
-      const inner = outer * 0.33;
-      return dist <= outer && dist >= inner;
-    }
-
-    function rotateStep(dir) {
-      if (state.page === 'menu') {
-        state.menuIndex = clampIndex(state.menuIndex + dir, MENU.length);
-        render();
+      if (!code) return;
+
+      const expectedState = localStorage.getItem('runrank_spotify_oauth_state') || '';
+      const verifier = localStorage.getItem('runrank_spotify_verifier') || '';
+      const clientId = getSpotifyClientId().trim();
+      const redirectUri = window.location.origin + '/';
+
+      if (!clientId || !verifier || !expectedState || expectedState !== stateStr) {
+        showToast('Spotify', 'state/verifier 불일치');
         return;
       }
 
-      const listLen =
-        state.page === 'tracks' ? (state.tracks || []).length :
-        state.page === 'ranking' ? (state.ranking || []).length :
-        state.page === 'hot' ? (state.hot || []).length :
-        state.page === 'runs' ? (state.runs || []).length :
-        0;
+      try {
+        const body = new URLSearchParams({
+          client_id: clientId,
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: redirectUri,
+          code_verifier: verifier,
+        });
 
-      if (listLen > 0) {
-        state.listIndex = clampIndex(state.listIndex + dir, listLen);
+        const res = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error_description || data?.error || String(res.status));
+        if (data?.access_token) {
+          setSpotifyToken(data.access_token);
+          showToast('Spotify', '연동 완료');
+        }
+      } catch (e) {
+        showToast('Spotify 실패', String(e.message || e).slice(0, 80));
+      } finally {
+        url.searchParams.delete('code');
+        url.searchParams.delete('state');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+
+    // ----------------------
+    // ✅ API
+    // ----------------------
+    async function apiGet(path) {
+      const res = await fetch(path, { cache: 'no-store', credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return await res.json();
+    }
+
+    async function refreshAll() {
+      try {
+        const [tracks, ranking, hot] = await Promise.all([
+          apiGet('/api/tracks'),
+          apiGet('/api/ranking'),
+          apiGet('/api/hot_ranking'),
+        ]);
+        state.tracks = Array.isArray(tracks) ? tracks : (tracks?.tracks || []);
+        state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
+        state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
+        state.online = true;
+        render();
+      } catch (e) {
+        showToast('오프라인', '네트워크를 확인해줘');
+        state.online = false;
         render();
       }
     }
 
-    wheel.addEventListener('pointerdown', (ev) => {
-      if (ev.target === center || center.contains(ev.target)) return;
-      if (!isOnOuterRing(ev)) return;
-      dragging = true;
-      lastAngle = angleFromEvent(ev);
-      accum = 0;
-      wheel.setPointerCapture(ev.pointerId);
-    });
+    async function refreshRuns() {
+      try {
+        const nick = getNick();
+        const qs = nick ? `?user=${encodeURIComponent(nick)}` : '';
+        const runs = await apiGet('/api/runs' + qs);
+        state.runs = Array.isArray(runs) ? runs : [];
+        render();
+      } catch (e) {
+        showToast('Runs 실패', '서버 응답이 이상해');
+      }
+    }
 
-    wheel.addEventListener('pointermove', (ev) => {
-      if (!dragging) return;
-      if (!isOnOuterRing(ev)) return;
+    async function submit(trackId) {
+      try {
+        const body = { track_id: Number(trackId), user: getNick() || null };
+        const res = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          credentials: 'same-origin',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
+        showToast('추천 완료', '랭킹에 반영됐어');
 
-      const a = angleFromEvent(ev);
-      let delta = a - lastAngle;
-      if (delta > 180) delta -= 360;
-      if (delta < -180) delta += 360;
+        const [ranking, hot] = await Promise.all([
+          apiGet('/api/ranking'),
+          apiGet('/api/hot_ranking'),
+        ]);
+        state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
+        state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
+        render();
+      } catch (e) {
+        showToast('실패', String(e.message || '서버 오류').slice(0, 120));
+      }
+    }
 
-      lastAngle = a;
-      accum += delta;
+    // ----------------------
+    // ✅ Render
+    // ----------------------
+    function renderHeader(title, hint) {
+      return `
+        <div class="titleRow">
+          <h1>${escapeHtml(title)}</h1>
+          <div class="hint">${escapeHtml(hint || '')}</div>
+        </div>
+      `;
+    }
 
-      while (accum >= STEP_DEG) { rotateStep(+1); accum -= STEP_DEG; }
-      while (accum <= -STEP_DEG) { rotateStep(-1); accum += STEP_DEG; }
-    });
+    function normalizeRankingItem(x) {
+      const title = safeText(x?.title || x?.track || x?.name || x?.[0] || '');
+      const score = x?.votes ?? x?.score ?? x?.count ?? x?.[1] ?? '';
+      const artist = safeText(x?.artist || x?.by || x?.[2] || '');
+      const cover_url = pickCoverUrl(x);
+      return { title, artist, score, cover_url };
+    }
 
-    wheel.addEventListener('pointerup', () => { dragging = false; });
-    wheel.addEventListener('pointercancel', () => { dragging = false; });
-  }
+    function render() {
+      if (el.pill) {
+        el.pill.textContent = state.online ? 'ONLINE' : 'OFFLINE';
+        el.pill.style.opacity = state.online ? '1' : '0.75';
+      }
 
-  function bind() {
-    el.btnMenu.addEventListener('click', goBack);
-    el.btnPrev.addEventListener('click', moveUp);
-    el.btnNext.addEventListener('click', moveDown);
-    el.btnCenter.addEventListener('click', select);
-    el.btnPlay.addEventListener('click', toggleCheck);
+      if (state.page === 'detail') return renderDetail();
+      if (state.page === 'run_new') return renderRunNew();
 
-    attachClickWheelRotation();
+      if (state.page === 'menu') return renderMenu();
+      if (state.page === 'tracks') return renderTracks();
+      if (state.page === 'ranking') return renderRanking();
+      if (state.page === 'hot') return renderHot();
+      if (state.page === 'runs') return renderRuns();
+      if (state.page === 'settings') return renderSettings();
+      if (state.page === 'about') return renderAbout();
 
-    window.addEventListener('keydown', (e) => {
-      const k = e.key;
-      if (k === 'ArrowUp') { e.preventDefault(); moveUp(); }
-      else if (k === 'ArrowDown') { e.preventDefault(); moveDown(); }
-      else if (k === 'Enter') { e.preventDefault(); select(); }
-      else if (k === 'Escape') { e.preventDefault(); goBack(); }
-      else if (k === ' ') { e.preventDefault(); toggleCheck(); }
-    });
+      state.page = 'menu';
+      renderMenu();
+    }
 
-    window.addEventListener('online', () => setTimeout(checkOnline, 300));
-    window.addEventListener('offline', () => setTimeout(checkOnline, 300));
-  }
+    function renderMenu() {
+      state.menuIndex = clampIndex(state.menuIndex, MENU.length);
+      const items = MENU.map((m, idx) => `
+        <div class="item ${idx === state.menuIndex ? 'active' : ''}">
+          <div class="thumb">⌁</div>
+          <div class="meta">
+            <div class="name">${escapeHtml(m.label)}</div>
+            <div class="sub">${escapeHtml(m.hint)}</div>
+          </div>
+          <div class="right">›</div>
+        </div>
+      `).join('');
 
-  function tick() { el.clock.textContent = fmtClock(); }
+      el.view.innerHTML = `
+        ${renderHeader('RunnerSheep', 'iPod UI')}
+        <div class="list">${items}</div>
+        <div class="kbd">조작: <code>↑</code><code>↓</code> 이동 · <code>Enter</code> 선택 · <code>Esc</code> 뒤로 · <code>Space</code> 체크</div>
+      `;
+    }
 
-  // ✅ 부팅 순서
-  bind();
-  tick();
-  setInterval(tick, 1000 * 10);
-  handleSpotifyCallback();
+    function renderTracks() {
+      const list = state.tracks || [];
+      state.listIndex = clampIndex(state.listIndex, list.length);
 
-  window.addEventListener('load', () => {
+      const items = list.map((t, idx) => {
+        const cover = pickCoverUrl(t);
+        const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
+        const artist = safeText(t.artist || t.singer || t.by || '');
+        const checked = state.checkedTrackIds.has(Number(t.id));
+        return `
+          <div class="item ${idx === state.listIndex ? 'active' : ''}">
+            <div class="thumb">${cover ? `<img alt="" src="${cover}">` : '♪'}</div>
+            <div class="meta">
+              <div class="name">${escapeHtml(name)}</div>
+              <div class="sub">${escapeHtml(artist || ' ')}</div>
+            </div>
+            <div class="right">${checked ? '✓' : '+'}</div>
+          </div>
+        `;
+      }).join('');
+
+      el.view.innerHTML = `
+        ${renderHeader('Tracks', '▶︎/⏸=체크')}
+        <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">/api/tracks 확인</div></div></div>'}</div>
+        <div class="kbd"><code>Enter</code> 상세 · <code>Space</code> 체크/해제 · <code>Esc</code> 메뉴</div>
+      `;
+    }
+
+    function renderRanking() {
+      const list = (state.ranking || []).map(normalizeRankingItem);
+      state.listIndex = clampIndex(state.listIndex, list.length);
+
+      const items = list.map((r, idx) => `
+        <div class="item ${idx === state.listIndex ? 'active' : ''}">
+          <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : String(idx + 1)}</div>
+          <div class="meta">
+            <div class="name">${escapeHtml(r.title || '—')}</div>
+            <div class="sub">${escapeHtml(r.artist || ' ')}</div>
+          </div>
+          <div class="right">${escapeHtml(String(r.score))}</div>
+        </div>
+      `).join('');
+
+      el.view.innerHTML = `
+        ${renderHeader('Ranking', '전체')}
+        <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">추천을 먼저 해봐</div></div></div>'}</div>
+        <div class="kbd"><code>Esc</code> 메뉴</div>
+      `;
+    }
+
+    function renderHot() {
+      const list = (state.hot || []).map(normalizeRankingItem);
+      state.listIndex = clampIndex(state.listIndex, list.length);
+
+      const items = list.map((r, idx) => `
+        <div class="item ${idx === state.listIndex ? 'active' : ''}">
+          <div class="thumb">${r.cover_url ? `<img alt="" src="${r.cover_url}">` : '🔥'}</div>
+          <div class="meta">
+            <div class="name">${escapeHtml(r.title || '—')}</div>
+            <div class="sub">${escapeHtml(r.artist || ' ')}</div>
+          </div>
+          <div class="right">${escapeHtml(String(r.score))}</div>
+        </div>
+      `).join('');
+
+      el.view.innerHTML = `
+        ${renderHeader('Hot', '최근')}
+        <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 추천이 없어</div></div></div>'}</div>
+        <div class="kbd"><code>Esc</code> 메뉴</div>
+      `;
+    }
+
+    function renderRuns() {
+      const runs = state.runs || [];
+      state.listIndex = clampIndex(state.listIndex, runs.length);
+
+      const items = runs.map((r, idx) => {
+        const tracks = Array.isArray(r.tracks) ? r.tracks : [];
+        const t0 = tracks[0] || r.track;
+        const cover = pickCoverUrl(r.photo_url ? { cover_url: r.photo_url } : t0);
+        const baseTitle = t0 ? `${t0.title}` : '—';
+        const title = tracks.length > 1 ? `${baseTitle} (+${tracks.length - 1})` : baseTitle;
+        const sub = `${r.date_label} · ${r.distance_km}km · ${fmtDur(r.duration_sec)} · ${r.pace}`;
+        return `
+          <div class="item ${idx === state.listIndex ? 'active' : ''}">
+            <div class="thumb">${r.photo_url ? `<img alt="" src="${r.photo_url}">` : (cover ? `<img alt="" src="${cover}">` : '🏃')}</div>
+            <div class="meta">
+              <div class="name">${escapeHtml(title)}</div>
+              <div class="sub">${escapeHtml(sub)}</div>
+            </div>
+            <div class="right">›</div>
+          </div>
+        `;
+      }).join('');
+
+      el.view.innerHTML = `
+        ${renderHeader('Runs', '센터=새 기록')}
+        <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">센터(SELECT)로 첫 기록 추가</div></div></div>'}</div>
+        <div class="kbd"><code>Enter</code> 새 기록 · <code>Esc</code> 메뉴</div>
+      `;
+    }
+
+    function renderRunNew() {
+      const nick = getNick();
+      const checkedIds = Array.from(state.checkedTrackIds);
+      const checkedInfos = checkedIds.map(id => {
+        const t = (state.tracks || []).find(x => Number(x.id) === Number(id));
+        const title = safeText(t?.title || `Track ${id}`);
+        const artist = safeText(t?.artist || '');
+        return `${escapeHtml(title)}${artist ? ' - ' + escapeHtml(artist) : ''}`;
+      });
+
+      el.view.innerHTML = `
+        ${renderHeader('New Run', '사진 업로드')}
+        <div class="detail">
+          <div>
+            <label>user (닉네임)</label>
+            <input id="run_user" value="${escapeAttr(nick)}" placeholder="닉네임 먼저 설정 추천" />
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>distance_km</label>
+              <input id="run_dist" type="number" step="0.01" placeholder="예: 5" />
+            </div>
+            <div>
+              <label>pace (mm:ss / km)</label>
+              <input id="run_pace" placeholder="예: 5:30" />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>date_label</label>
+              <input id="run_date" placeholder="예: 2026-02-05" />
+            </div>
+            <div>
+              <label>tracks (체크한 곡)</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <div style="flex:1; font-size:11px; color:var(--muted); line-height:1.35;">
+                  ${checkedInfos.length ? `${checkedInfos.length}곡 선택됨` : 'Tracks 메뉴에서 Space 눌러 체크해줘'}
+                </div>
+                <button class="btn" id="clear_checked" style="white-space:nowrap;">초기화</button>
+              </div>
+              <div style="margin-top:6px; max-height:72px; overflow:auto; font-size:11px;">
+                ${checkedInfos.length ? checkedInfos.map(s => `<div style="padding:2px 0; opacity:.92;">• ${s}</div>`).join('') : ''}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label>photo</label>
+            <label class="btn" for="run_photo" style="display:inline-flex; width:100%; justify-content:center;">
+              사진 선택하기
+            </label>
+            <input id="run_photo" type="file" accept="image/*" style="display:none;" />
+            <div id="photo_name" style="margin-top:6px;font-size:11px;color:var(--muted);">선택된 파일 없음</div>
+          </div>
+
+          <div class="cta">
+            <button class="btn" id="run_cancel">취소</button>
+            <button class="btn primary" id="run_submit">저장</button>
+          </div>
+        </div>
+        <div class="kbd"><code>Esc</code> 취소</div>
+      `;
+
+      document.getElementById('run_cancel')?.addEventListener('click', () => {
+        state.page = 'runs';
+        render();
+      });
+
+      const photoInput = document.getElementById('run_photo');
+      document.getElementById('clear_checked')?.addEventListener('click', () => {
+        state.checkedTrackIds.clear();
+        showToast('초기화', '선택곡 0개');
+        render();
+      });
+
+      photoInput?.addEventListener('change', () => {
+        const f = photoInput.files?.[0];
+        const pn = document.getElementById('photo_name');
+        if (pn) pn.textContent = f ? `선택됨: ${f.name}` : '선택된 파일 없음';
+      });
+
+      document.getElementById('run_submit')?.addEventListener('click', async () => {
+        const user = document.getElementById('run_user')?.value.trim() || '';
+        const distance_km_raw = document.getElementById('run_dist')?.value.trim() || '';
+        const paceStr = document.getElementById('run_pace')?.value.trim() || '';
+        const date_label = (document.getElementById('run_date')?.value.trim() || '') || new Date().toISOString().slice(0, 10);
+        const track_ids = Array.from(state.checkedTrackIds);
+        const photo = document.getElementById('run_photo')?.files?.[0] || null;
+
+        if (!user) return showToast('에러', 'user(닉네임) 필요');
+
+        const dist = Number(distance_km_raw);
+        if (!dist || dist <= 0) return showToast('에러', 'distance_km 필요');
+
+        const m = paceStr.match(/^(\d+)\s*:\s*([0-5]?\d)$/);
+        if (!m) return showToast('에러', 'pace 형식은 5:30 처럼 mm:ss');
+
+        const pace_sec = Number(m[1]) * 60 + Number(m[2]);
+        if (pace_sec <= 0) return showToast('에러', 'pace 필요');
+
+        const duration_sec = Math.round(dist * pace_sec);
+
+        const fd = new FormData();
+        fd.append('user', user);
+        fd.append('distance_km', String(dist));
+        fd.append('duration_sec', String(duration_sec));
+        fd.append('date_label', date_label);
+        if (track_ids.length) fd.append('track_ids', JSON.stringify(track_ids));
+        if (photo) fd.append('photo', photo);
+
+        try {
+          const res = await fetch('/api/runs', { method: 'POST', body: fd, credentials: 'same-origin' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data?.ok === false) throw new Error(data?.error || `${res.status}`);
+
+          const vote = data?.vote;
+          if (vote?.did_vote) {
+            showToast('저장+투표', `pace: ${data.pace} · ${vote.inserted}곡 투표됨`);
+          } else if (vote?.already_voted) {
+            showToast('저장됨', `pace: ${data.pace} · 오늘은 이미 투표했어`);
+          } else {
+            showToast('저장됨', `pace: ${data.pace}`);
+          }
+
+          if (vote?.did_vote) state.checkedTrackIds.clear();
+          state.page = 'runs';
+          await refreshRuns();
+        } catch (e) {
+          showToast('실패', String(e.message || '서버 오류').slice(0, 120));
+        }
+      });
+    }
+
+    function renderSettings() {
+      const nick = getNick();
+      const spClientId = getSpotifyClientId();
+      const spConnected = !!getSpotifyToken();
+
+      el.view.innerHTML = `
+        ${renderHeader('Settings', '닉네임')}
+        <div class="detail">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="font-weight:900; font-size:13px;">Nickname</div>
+            <div style="font-size:11px; color: var(--muted);">추천/런 기록에 사용</div>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="nickInput" value="${escapeAttr(nick)}" placeholder="예) joon" style="flex:1;">
+            <button class="btn primary" id="saveNick">저장</button>
+          </div>
+
+          <div style="margin-top:8px; font-size:11px; color: var(--muted); line-height:1.35;">
+            커버 자동 채우기: 아래 버튼 누르면 커버 없는 트랙 일부를 서버가 iTunes로 찾아 캐시에 저장함.
+          </div>
+
+          <div class="cta">
+            <button class="btn" id="fillCovers">커버 채우기</button>
+            <button class="btn" id="refreshBtn">새로고침</button>
+          </div>
+
+          <div class="cta">
+            <button class="btn" id="clearNick">닉네임 지우기</button>
+            <button class="btn" id="loadRuns">내 Runs 불러오기</button>
+          </div>
+
+          <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.10);"></div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="font-weight:900; font-size:13px;">Spotify</div>
+            <div style="font-size:11px; color: var(--muted);">PKCE 연동</div>
+          </div>
+
+          <div style="margin-top:6px; font-size:11px; color: var(--muted); line-height:1.35;">
+            Redirect URI는 <b style="color:var(--text)">${escapeHtml(window.location.origin + '/')}</b> 로 등록해야 함.
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+            <input id="spClientId" value="${escapeAttr(spClientId)}" placeholder="Spotify Client ID" style="flex:1;" />
+            <button class="btn primary" id="spSave">저장</button>
+          </div>
+
+          <div class="cta">
+            <button class="btn ${spConnected ? 'primary' : ''}" id="spConnect">${spConnected ? '연동됨(다시)' : 'Spotify 연동'}</button>
+            <button class="btn" id="spDisconnect">연동 해제</button>
+          </div>
+        </div>
+        <div class="kbd"><code>Esc</code> 메뉴</div>
+      `;
+
+      document.getElementById('saveNick')?.addEventListener('click', () => {
+        const v = document.getElementById('nickInput')?.value.trim() || '';
+        setNick(v);
+        showToast('저장됨', v ? `닉네임: ${v}` : '비워뒀어');
+        render();
+      });
+
+      document.getElementById('clearNick')?.addEventListener('click', () => {
+        setNick('');
+        showToast('삭제됨', '닉네임 제거');
+        render();
+      });
+
+      document.getElementById('refreshBtn')?.addEventListener('click', async () => {
+        showToast('갱신', '데이터 불러오는 중…');
+        await refreshAll();
+      });
+
+      document.getElementById('fillCovers')?.addEventListener('click', async () => {
+        try {
+          showToast('커버', '찾는 중…');
+          const t = await apiGet('/api/tracks?resolve_missing=1&resolve_limit=10');
+          state.tracks = Array.isArray(t) ? t : [];
+          showToast('완료', 'Tracks에 반영됨');
+          render();
+        } catch (e) {
+          showToast('실패', '커버 채우기 오류');
+        }
+      });
+
+      document.getElementById('loadRuns')?.addEventListener('click', async () => {
+        state.page = 'runs';
+        await refreshRuns();
+      });
+
+      document.getElementById('spSave')?.addEventListener('click', () => {
+        setSpotifyClientId(document.getElementById('spClientId')?.value.trim() || '');
+        showToast('Spotify', 'Client ID 저장됨');
+      });
+      document.getElementById('spConnect')?.addEventListener('click', () => spotifyLogin());
+      document.getElementById('spDisconnect')?.addEventListener('click', () => {
+        setSpotifyToken('');
+        localStorage.removeItem('runrank_spotify_verifier');
+        localStorage.removeItem('runrank_spotify_oauth_state');
+        showToast('Spotify', '연동 해제');
+        render();
+      });
+    }
+
+    function renderAbout() {
+      el.view.innerHTML = `
+        ${renderHeader('About', 'RunRank')}
+        <div class="detail">
+          <div style="font-weight:900;">이번 업데이트</div>
+          <div style="font-size:11px; color: var(--muted); line-height:1.45;">
+            ✅ 앨범커버: 서버 캐시 + iTunes 검색<br/>
+            ✅ Runs: 런닝 기록 + 사진 업로드<br/>
+            <br/>
+            API:
+            <span style="color: var(--accent);">/api/tracks</span>,
+            <span style="color: var(--accent);">/api/covers/resolve_all</span>,
+            <span style="color: var(--accent);">/api/runs</span>
+          </div>
+          <div style="margin-top:auto; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="btn">v0.4</span>
+            <span class="btn">Covers</span>
+            <span class="btn">Runs+Photo</span>
+          </div>
+        </div>
+        <div class="kbd"><code>Esc</code> 메뉴</div>
+      `;
+    }
+
+    function renderDetail() {
+      const t = state.selectedTrack;
+      if (!t) { state.page = 'tracks'; return renderTracks(); }
+
+      const cover = pickCoverUrl(t);
+      const name = safeText(t.title || t.name || t.track || `Track ${t.id ?? ''}`);
+      const artist = safeText(t.artist || t.singer || t.by || '');
+      const id = t.id ?? t.track_id ?? t.trackId;
+
+      el.view.innerHTML = `
+        ${renderHeader('Track', '상세')}
+        <div class="detail">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div class="thumb" style="width:56px;height:56px;border-radius:12px;">
+              ${cover ? `<img alt="" src="${cover}">` : '♪'}
+            </div>
+            <div style="min-width:0;">
+              <div style="font-weight:900; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(name)}</div>
+              <div style="font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(artist || ' ')}</div>
+            </div>
+          </div>
+
+          <div style="font-size:11px; color: var(--muted); line-height:1.45;">
+            <div>Track ID: <b style="color:var(--text)">${escapeHtml(String(id))}</b></div>
+            <div>Space : 체크/해제</div>
+          </div>
+
+          <div class="cta">
+            <button class="btn" id="backBtn">뒤로</button>
+            <button class="btn primary" id="voteBtn">추천(Like)</button>
+          </div>
+        </div>
+        <div class="kbd"><code>Space</code> 체크 · <code>Esc</code> 뒤로</div>
+      `;
+
+      document.getElementById('backBtn')?.addEventListener('click', () => goBack());
+      document.getElementById('voteBtn')?.addEventListener('click', () => submit(id));
+    }
+
+    function goTo(page) {
+      state.page = page;
+      state.listIndex = 0;
+      render();
+    }
+
+    function goBack() {
+      if (state.page === 'detail') { state.page = 'tracks'; return render(); }
+      if (state.page === 'run_new') { state.page = 'runs'; return render(); }
+      state.page = 'menu';
+      render();
+    }
+
+    function moveUp() {
+      if (state.page === 'menu') state.menuIndex--;
+      else state.listIndex--;
+      render();
+    }
+    function moveDown() {
+      if (state.page === 'menu') state.menuIndex++;
+      else state.listIndex++;
+      render();
+    }
+
+    function select() {
+      if (state.page === 'menu') {
+        const key = MENU[clampIndex(state.menuIndex, MENU.length)]?.key;
+        if (key === 'runs') { state.page = 'runs'; refreshRuns(); return; }
+        return goTo(key || 'tracks');
+      }
+      if (state.page === 'tracks') {
+        const list = state.tracks || [];
+        const t = list[clampIndex(state.listIndex, list.length)];
+        if (!t) return;
+        state.selectedTrack = t;
+        state.page = 'detail';
+        return render();
+      }
+      if (state.page === 'runs') {
+        state.page = 'run_new';
+        return render();
+      }
+    }
+
+    function toggleCheck() {
+      let id = null;
+
+      if (state.page === 'tracks') {
+        const list = state.tracks || [];
+        const t = list[clampIndex(state.listIndex, list.length)];
+        id = t?.id ?? t?.track_id ?? t?.trackId;
+      } else if (state.page === 'detail') {
+        id = state.selectedTrack?.id ?? state.selectedTrack?.track_id ?? state.selectedTrack?.trackId;
+      }
+
+      if (id == null) return;
+      id = Number(id);
+
+      if (state.checkedTrackIds.has(id)) {
+        state.checkedTrackIds.delete(id);
+        showToast('해제', `선택곡 ${state.checkedTrackIds.size}개`);
+      } else {
+        state.checkedTrackIds.add(id);
+        showToast('체크', `선택곡 ${state.checkedTrackIds.size}개`);
+      }
+      render();
+    }
+
+    function attachClickWheelRotation() {
+      const wheel = document.querySelector('.wheel');
+      const center = document.getElementById('btnCenter');
+      if (!wheel || !center) return;
+      if (wheel.dataset.bound === '1') return;
+      wheel.dataset.bound = '1';
+
+      let dragging = false;
+      let lastAngle = 0;
+      let accum = 0;
+      const STEP_DEG = 22;
+
+      function angleFromEvent(ev) {
+        const r = wheel.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const x = ev.clientX - cx;
+        const y = ev.clientY - cy;
+        let a = Math.atan2(y, x) * 180 / Math.PI;
+        if (a < 0) a += 360;
+        return a;
+      }
+
+      function isOnOuterRing(ev) {
+        const r = wheel.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const dx = ev.clientX - cx;
+        const dy = ev.clientY - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const outer = r.width / 2;
+        const inner = outer * 0.33;
+        return dist <= outer && dist >= inner;
+      }
+
+      function rotateStep(dir) {
+        if (state.page === 'menu') {
+          state.menuIndex = clampIndex(state.menuIndex + dir, MENU.length);
+          render();
+          return;
+        }
+
+        const listLen =
+          state.page === 'tracks' ? (state.tracks || []).length :
+          state.page === 'ranking' ? (state.ranking || []).length :
+          state.page === 'hot' ? (state.hot || []).length :
+          state.page === 'runs' ? (state.runs || []).length :
+          0;
+
+        if (listLen > 0) {
+          state.listIndex = clampIndex(state.listIndex + dir, listLen);
+          render();
+        }
+      }
+
+      wheel.addEventListener('pointerdown', (ev) => {
+        if (ev.target === center || center.contains(ev.target)) return;
+        if (!isOnOuterRing(ev)) return;
+        dragging = true;
+        lastAngle = angleFromEvent(ev);
+        accum = 0;
+        wheel.setPointerCapture(ev.pointerId);
+      });
+
+      wheel.addEventListener('pointermove', (ev) => {
+        if (!dragging) return;
+        if (!isOnOuterRing(ev)) return;
+
+        const a = angleFromEvent(ev);
+        let delta = a - lastAngle;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+
+        lastAngle = a;
+        accum += delta;
+
+        while (accum >= STEP_DEG) { rotateStep(+1); accum -= STEP_DEG; }
+        while (accum <= -STEP_DEG) { rotateStep(-1); accum += STEP_DEG; }
+      });
+
+      wheel.addEventListener('pointerup', () => { dragging = false; });
+      wheel.addEventListener('pointercancel', () => { dragging = false; });
+    }
+
+    function bind() {
+      // 버튼이 없으면 그냥 스킵 (모바일/레이아웃 차이 대비)
+      el.btnMenu?.addEventListener('click', goBack);
+      el.btnPrev?.addEventListener('click', moveUp);
+      el.btnNext?.addEventListener('click', moveDown);
+      el.btnCenter?.addEventListener('click', select);
+      el.btnPlay?.addEventListener('click', toggleCheck);
+
+      attachClickWheelRotation();
+
+      window.addEventListener('keydown', (e) => {
+        const k = e.key;
+        if (k === 'ArrowUp') { e.preventDefault(); moveUp(); }
+        else if (k === 'ArrowDown') { e.preventDefault(); moveDown(); }
+        else if (k === 'Enter') { e.preventDefault(); select(); }
+        else if (k === 'Escape') { e.preventDefault(); goBack(); }
+        else if (k === ' ') { e.preventDefault(); toggleCheck(); }
+      });
+    }
+
+    // ----------------------
+    // ✅ 부팅 순서
+    // ----------------------
+    bind();
+    tick();
+    setInterval(tick, 1000 * 10);
+
+    // 메뉴는 데이터 없어도 뜨게
+    render();
+
+    // OAuth 처리
+    handleSpotifyCallback();
+
+    // 온라인 + 데이터 로드
     startOnlineMonitor();
     refreshAll();
-  });
+
+  } catch (e) {
+    showFatal(e);
+  }
 })();
 </script>
+
