@@ -29,21 +29,34 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # ✅ 홈(/)은 무조건 static/index.html을 반환 (templates 혼선 제거)
 @app.get("/", include_in_schema=False)
 def root():
-    return FileResponse(str(STATIC_DIR / "index.html"))
+    return FileResponse(
+        str(STATIC_DIR / "index.html"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 # ✅ PWA 파일들을 루트(/)에서도 서빙 (iOS Safari/카톡 인앱브라우저 캐시/스코프 이슈 방지)
 @app.get("/index.html", include_in_schema=False)
 def index_html():
-    return FileResponse(str(STATIC_DIR / "index.html"))
+    return FileResponse(
+        str(STATIC_DIR / "index.html"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 @app.get("/service-worker.js", include_in_schema=False)
 def service_worker():
-    # service worker는 반드시 루트에서 서빙되어야 scope='/' 적용이 쉬움
-    return FileResponse(str(STATIC_DIR / "service-worker.js"))
+    return FileResponse(
+        str(STATIC_DIR / "service-worker.js"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 @app.get("/manifest.webmanifest", include_in_schema=False)
 def manifest():
-    return FileResponse(str(STATIC_DIR / "manifest.webmanifest"))
+    return FileResponse(
+        str(STATIC_DIR / "manifest.webmanifest"),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
 
 # 아이콘/파비콘/터치아이콘도 루트 경로로 제공 (index.html에서 /icon-192.png 등으로 참조)
 @app.get("/favicon.ico", include_in_schema=False)
