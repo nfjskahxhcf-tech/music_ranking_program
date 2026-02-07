@@ -31,6 +31,12 @@ def root():
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 
+
+@app.head("/", include_in_schema=False)
+def root_head():
+    return Response(status_code=200)
+
+
 # ✅ PWA 파일들을 루트(/)에서도 서빙 (scope='/' + iOS/카톡 캐시 이슈 방지)
 @app.head("/", include_in_schema=False)
 def root_head():
