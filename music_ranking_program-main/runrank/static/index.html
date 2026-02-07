@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
+<!-- DEPLOY_MARK: 2026-02-07_SYNC -->
   <!-- MARK:TEMPLATE -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -184,13 +185,10 @@ async function checkOnline() {
 }
 
 function startOnlineMonitor(){
+  window.addEventListener('load', startOnlineMonitor);
   checkOnline();                    // 즉시 1번
   setInterval(checkOnline, 15000);  // 15초마다 체크
 }
-
-// ✅ 실제로 시작
-window.addEventListener('load', startOnlineMonitor);
-
 
 
 
@@ -390,36 +388,17 @@ window.addEventListener('load', startOnlineMonitor);
     }
   }
 
-  async function refreshAll(){
-  const results = await Promise.allSettled([
-    apiGet('/api/tracks'),
-    apiGet('/api/ranking'),
-    apiGet('/api/hot_ranking'),
-  ]);
-
-  const [tracksR, rankingR, hotR] = results;
-
-  // ✅ OFFLINE 판정은 checkOnline(health)만 믿고,
-  // 여기서는 “부분 성공이라도 렌더링”에 집중
-  if (tracksR.status === 'fulfilled') {
-    const tracks = tracksR.value;
-    state.tracks = Array.isArray(tracks) ? tracks : (tracks?.tracks || []);
+  async function refreshRuns(){
+    try{
+      const nick = getNick();
+      const qs = nick ? `?user=${encodeURIComponent(nick)}` : '';
+      const runs = await apiGet('/api/runs' + qs);
+      state.runs = Array.isArray(runs) ? runs : [];
+      render();
+    }catch(e){
+      showToast('Runs 실패', '서버 응답이 이상해');
+    }
   }
-
-  if (rankingR.status === 'fulfilled') {
-    const ranking = rankingR.value;
-    state.ranking = Array.isArray(ranking) ? ranking : (ranking?.ranking || []);
-  }
-
-  if (hotR.status === 'fulfilled') {
-    const hot = hotR.value;
-    state.hot = Array.isArray(hot) ? hot : (hot?.ranking || []);
-  }
-
-  // ✅ 여기서 navigator.onLine로 OFFLINE 찍지 말기(환경 따라 틀림)
-  render();
-}
-
 
   async function submit(trackId){
     try {
