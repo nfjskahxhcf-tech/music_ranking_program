@@ -52,11 +52,7 @@
       gap:12px;
       opacity:.95;
     }
-    .brand{
-      display:flex; align-items:center; gap:10px;
-      font-weight:700;
-      letter-spacing:.2px;
-    }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px; }
     .dot{
       width:10px; height:10px; border-radius:50%;
       background: var(--good);
@@ -73,6 +69,7 @@
       display:flex; align-items:center; gap:8px;
     }
     .pill b{ color: var(--text); font-weight:600; }
+
     .device{
       width:min(430px, 100%);
       aspect-ratio: 9 / 16;
@@ -123,12 +120,21 @@
       background: radial-gradient(800px 300px at 50% -40%, rgba(98,167,255,.25), rgba(0,0,0,0) 55%);
       pointer-events:none;
     }
+
+    /* ✅ 핵심: view를 화면 높이 100%로 고정 + flex column */
+    #view{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      min-height:0; /* flex overflow 버그 방지 */
+      position:relative;
+      z-index:1;
+    }
+
     .titleRow{
       display:flex; align-items:center; justify-content:space-between;
       gap:10px;
       margin-bottom: 10px;
-      position:relative;
-      z-index:1;
     }
     .titleRow h1{
       margin:0;
@@ -144,16 +150,20 @@
       border-radius:999px;
       background: rgba(0,0,0,.18);
     }
+
+    /* ✅ 핵심: list를 flex:1로 만들어 항상 스크롤 가능하게 */
     .list{
-      position:relative;
-      z-index:1;
+      flex:1;
+      min-height:0;
       border-radius: 16px;
       overflow:auto;
-      max-height: calc(100% - 34px);
       padding: 6px;
       background: rgba(0,0,0,.18);
       border: 1px solid rgba(255,255,255,.09);
+      scroll-behavior: auto;
+      -webkit-overflow-scrolling: touch;
     }
+
     .item{
       display:flex;
       align-items:center;
@@ -174,6 +184,7 @@
       background: linear-gradient(135deg, rgba(98,167,255,.35), rgba(138,92,255,.25));
       box-shadow: 0 0 0 2px var(--ring) inset, 0 10px 22px rgba(0,0,0,.25);
     }
+
     .thumb{
       width: 34px; height: 34px;
       border-radius: 10px;
@@ -184,12 +195,11 @@
       flex: 0 0 auto;
     }
     .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+
     .kbd{
       margin-top: 10px;
       font-size: 12px;
       color: var(--muted);
-      position:relative;
-      z-index:1;
       line-height: 1.5;
     }
     .kbd code{
@@ -202,6 +212,7 @@
       font-size: 11px;
       margin: 0 2px;
     }
+
     .wheel{
       width:100%;
       height: calc(52% - 18px);
@@ -250,9 +261,11 @@
       letter-spacing:.6px;
       cursor:pointer;
       transition: transform .08s ease;
+      z-index:3;
     }
     .center:active{ transform: scale(.98); }
-    .btn{
+
+    .btnLabel{
       position:absolute;
       font-size: 12px;
       font-weight: 800;
@@ -260,11 +273,30 @@
       color: rgba(0,0,0,.72);
       text-transform: uppercase;
       pointer-events:none;
+      z-index:2;
     }
-    .btn.menu{ top: 12px; }
-    .btn.play{ right: 12px; }
-    .btn.back{ left: 12px; }
-    .btn.next{ bottom: 12px; }
+    .btnLabel.menu{ top: 12px; }
+    .btnLabel.play{ right: 12px; }
+    .btnLabel.back{ left: 12px; }
+    .btnLabel.next{ bottom: 12px; }
+
+    /* ✅ 핵심: 폰에서 누를 수 있는 hit area */
+    .hit{
+      position:absolute;
+      width: 44%;
+      height: 22%;
+      border-radius: 999px;
+      background: rgba(0,0,0,0);
+      z-index:4;
+      pointer-events:auto;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .hit.menu{ top: 0; left: 50%; transform: translateX(-50%); }
+    .hit.next{ bottom: 0; left: 50%; transform: translateX(-50%); }
+    .hit.back{ left: 0; top: 50%; transform: translateY(-50%); width:22%; height:44%; }
+    .hit.play{ right: 0; top: 50%; transform: translateY(-50%); width:22%; height:44%; }
+
     .tapHint{
       position:absolute;
       bottom: 8px;
@@ -275,16 +307,15 @@
       pointer-events:none;
     }
 
-    /* detail view */
     .detail{
-      position:relative;
-      z-index:1;
+      flex:1;
+      min-height:0;
       border-radius: 16px;
       padding: 12px;
       background: rgba(0,0,0,.18);
       border: 1px solid rgba(255,255,255,.09);
       overflow:auto;
-      max-height: calc(100% - 34px);
+      -webkit-overflow-scrolling: touch;
     }
     .detail h2{ margin: 4px 0 6px; font-size: 15px; }
     .detail p{ margin: 6px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -330,16 +361,24 @@
 
     <div class="device" id="device">
       <div class="speaker"></div>
+
       <div class="screen" id="screen">
         <div id="view"></div>
       </div>
 
       <div class="wheel" id="wheel">
-        <div class="ring">
-          <div class="btn menu">MENU</div>
-          <div class="btn back">BACK</div>
-          <div class="btn play">PLAY</div>
-          <div class="btn next">NEXT</div>
+        <div class="ring" id="ring">
+          <div class="btnLabel menu">MENU</div>
+          <div class="btnLabel back">BACK</div>
+          <div class="btnLabel play">PLAY</div>
+          <div class="btnLabel next">NEXT</div>
+
+          <!-- ✅ 폰 터치용 hit areas -->
+          <div class="hit menu" id="btnMenu" aria-label="Menu"></div>
+          <div class="hit back" id="btnBack" aria-label="Back"></div>
+          <div class="hit play" id="btnPlay" aria-label="Play"></div>
+          <div class="hit next" id="btnNext" aria-label="Next"></div>
+
           <div class="center" id="center">OK</div>
           <div class="tapHint">휠: 드래그 / 마우스휠 / 터치</div>
         </div>
@@ -350,11 +389,8 @@
       <div style="font-weight:800; color:var(--text); margin-bottom:6px;">사용법</div>
       <div>· 휠 회전: 메뉴/리스트 이동</div>
       <div>· OK(센터): 선택 / 상세 / 저장</div>
-      <div>· MENU: 메인 메뉴로</div>
+      <div>· MENU: 메인 메뉴</div>
       <div>· BACK: 이전 화면</div>
-      <div style="margin-top:10px;">
-        서버 API: <code style="background:rgba(0,0,0,.25); padding:2px 6px; border-radius:8px; border:1px solid rgba(255,255,255,.10); color:var(--text)">/api/*</code>
-      </div>
     </div>
   </div>
 
@@ -384,9 +420,14 @@
   const el = {
     view: document.getElementById('view'),
     wheel: document.getElementById('wheel'),
+    ring: document.getElementById('ring'),
     center: document.getElementById('center'),
-    device: document.getElementById('device'),
     pill: document.getElementById('pill'),
+
+    btnMenu: document.getElementById('btnMenu'),
+    btnBack: document.getElementById('btnBack'),
+    btnPlay: document.getElementById('btnPlay'),
+    btnNext: document.getElementById('btnNext'),
   };
 
   const MENU = [
@@ -403,7 +444,7 @@
     page: 'menu',
     menuIndex: 0,
     listIndex: 0,
-    detailItem: null, // {type, data}
+    detailItem: null, // {type, data, from}
     tracks: [],
     ranking: [],
     hot: [],
@@ -414,7 +455,6 @@
   function safeText(s){
     return String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   }
-
   function clampIndex(i, n) { if (n <= 0) return 0; return Math.max(0, Math.min(n - 1, i)); }
   function modIndex(i, n) { if (n <= 0) return 0; return (i % n + n) % n; }
 
@@ -422,34 +462,18 @@
     return `<div class="titleRow"><h1>${title}</h1><div class="hint">${hint || ''}</div></div>`;
   }
 
-
+  // ✅ 핵심: active가 보이게 강제로 맞춤 (스크롤/높이 문제까지 같이 해결)
   function ensureActiveInView() {
-    const list = el.view.querySelector('.list');
     const active = el.view.querySelector('.item.active');
-    if (!list || !active) return;
-
-    const pad = 6;
-    const aTop = active.offsetTop;
-    const aBottom = aTop + active.offsetHeight;
-
-    const lTop = list.scrollTop;
-    const lBottom = lTop + list.clientHeight;
-
-    if (aTop < lTop + pad) {
-      list.scrollTop = Math.max(0, aTop - pad);
-    } else if (aBottom > lBottom - pad) {
-      list.scrollTop = aBottom - list.clientHeight + pad;
-    }
+    if (!active) return;
+    active.scrollIntoView({ block: 'nearest' });
   }
-
 
   function pickCoverUrl(obj){
     if(!obj) return '';
     const c = obj.cover_url || obj.cover || obj.image || obj.album_cover || obj.artwork || obj.artwork_url || '';
     if (typeof c === 'string') return c;
-    if (c && typeof c === 'object') {
-      return c.url || c.small || c.medium || c.large || '';
-    }
+    if (c && typeof c === 'object') return c.url || c.small || c.medium || c.large || '';
     return '';
   }
 
@@ -470,7 +494,6 @@
 
   function render() {
     el.pill.textContent = state.online ? 'ONLINE' : 'OFFLINE';
-    el.pill.style.opacity = state.online ? '1' : '0.75';
 
     if (state.page === 'detail') return renderDetail();
     if (state.page === 'menu') return renderMenu();
@@ -498,7 +521,7 @@
     el.view.innerHTML = `
       ${renderHeader('RunnerSheep', 'iPod UI')}
       <div class="list">${items}</div>
-      <div class="kbd">조작: <code>↑</code><code>↓</code> 이동 · <code>Enter</code> 선택 · <code>Esc</code> 뒤로 · <code>Space</code> 체크</div>
+      <div class="kbd">휠/↑↓ 이동 · OK 선택 · MENU 메인 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -514,10 +537,7 @@
       const checked = state.checkedTrackIds.has(Number(t.id));
       return `
         <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${cover
-            ? `<img src="${cover}" alt="">`
-            : '♪'
-          }</div>
+          <div class="thumb">${cover ? `<img src="${cover}" alt="">` : '♪'}</div>
           <div class="meta">
             <div class="name">${name}</div>
             <div class="sub">${artist}</div>
@@ -530,7 +550,7 @@
     el.view.innerHTML = `
       ${renderHeader('Tracks', 'Space=체크')}
       <div class="list">${items || '<div class="item"><div class="thumb">!</div><div class="meta"><div class="name">트랙이 없어</div><div class="sub">tracks.json 확인</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · <code>Space</code> 체크 · <code>Enter</code> 상세 · <code>Esc</code> 뒤로</div>
+      <div class="kbd">휠/↑↓ 이동 · Space 체크 · OK 상세 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -556,7 +576,7 @@
     el.view.innerHTML = `
       ${renderHeader('Ranking', '전체')}
       <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">아직 투표가 없어</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · <code>Enter</code> 상세 · <code>Esc</code> 뒤로</div>
+      <div class="kbd">휠/↑↓ 이동 · OK 상세 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -582,7 +602,7 @@
     el.view.innerHTML = `
       ${renderHeader('Hot', '최근')}
       <div class="list">${items || '<div class="item"><div class="thumb">…</div><div class="meta"><div class="name">데이터 없음</div><div class="sub">최근 데이터가 없어</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · <code>Enter</code> 상세 · <code>Esc</code> 뒤로</div>
+      <div class="kbd">휠/↑↓ 이동 · OK 상세 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -608,9 +628,9 @@
     }).join('');
 
     el.view.innerHTML = `
-      ${renderHeader('Runs', '센터=새 기록')}
-      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">센터 버튼으로 추가</div></div><div class="right"></div></div>'}</div>
-      <div class="kbd">휠/↑↓ 이동 · <code>Enter</code> 상세 · <code>OK</code> 추가 · <code>Esc</code> 뒤로</div>
+      ${renderHeader('Runs', '기록')}
+      <div class="list">${items || '<div class="item"><div class="thumb">🏃</div><div class="meta"><div class="name">기록 없음</div><div class="sub">OK로 추가(추후)</div></div><div class="right"></div></div>'}</div>
+      <div class="kbd">휠/↑↓ 이동 · OK 상세 · BACK 뒤로</div>
     `;
     requestAnimationFrame(ensureActiveInView);
   }
@@ -621,15 +641,14 @@
       <div class="detail">
         <h2>설정</h2>
         <p>· Space: Tracks에서 체크/해제</p>
-        <p>· OK: 선택/상세/추가</p>
-        <p>· Menu: 메인 메뉴</p>
-        <p>· Back: 이전 화면</p>
+        <p>· OK: 선택/상세</p>
+        <p>· MENU: 메인 메뉴</p>
+        <p>· BACK: 이전 화면</p>
         <div class="chipRow">
-          <div class="chip"><b>체크</b>는 로컬 상태</div>
           <div class="chip"><b>PWA</b> 오프라인 캐시</div>
         </div>
       </div>
-      <div class="kbd">휠은 여기서 스크롤 없음</div>
+      <div class="kbd">BACK로 이전</div>
     `;
   }
 
@@ -645,7 +664,7 @@
           <div class="chip"><b>PWA</b> service-worker</div>
         </div>
       </div>
-      <div class="kbd">Esc/Back로 이전</div>
+      <div class="kbd">BACK로 이전</div>
     `;
   }
 
@@ -671,9 +690,8 @@
             <div class="chip"><b>ID</b> ${safeText(t.id ?? '')}</div>
             <div class="chip"><b>체크</b> Space로 토글</div>
           </div>
-          <p style="margin-top:10px">OK=투표(서버), Space=체크(로컬), Back=이전</p>
         </div>
-        <div class="kbd">휠: 아무 동작 없음 · Space 체크 · OK 투표</div>
+        <div class="kbd">Space 체크 · BACK 뒤로 · MENU 메인</div>
       `;
       return;
     }
@@ -694,7 +712,7 @@
             <div class="chip"><b>점수</b> ${safeText(it.score)}</div>
           </div>
         </div>
-        <div class="kbd">Back/Esc로 이전</div>
+        <div class="kbd">BACK 뒤로</div>
       `;
       return;
     }
@@ -712,9 +730,8 @@
             <div class="chip"><b>거리</b> ${safeText(dist)} km</div>
             <div class="chip"><b>시간</b> ${dur}</div>
           </div>
-          <p style="margin-top:10px">OK=추가(현재 화면에서는 없음), Back=이전</p>
         </div>
-        <div class="kbd">Back/Esc로 이전</div>
+        <div class="kbd">BACK 뒤로</div>
       `;
       return;
     }
@@ -754,8 +771,11 @@
   function goMenu() {
     state.page = 'menu';
     state.menuIndex = clampIndex(state.menuIndex, MENU.length);
+    state.listIndex = 0;
+    state.detailItem = null;
     renderMenu();
   }
+
   function goBack() {
     if (state.page === 'detail') {
       const from = state.detailItem?.from || 'menu';
@@ -771,6 +791,7 @@
       return;
     }
   }
+
   function openSelected() {
     if (state.page === 'menu') {
       const m = MENU[state.menuIndex];
@@ -780,6 +801,7 @@
       render();
       return;
     }
+
     if (state.page === 'tracks') {
       const t = (state.tracks || [])[state.listIndex];
       if (!t) return;
@@ -788,6 +810,7 @@
       renderDetail();
       return;
     }
+
     if (state.page === 'ranking') {
       const x = (state.ranking || [])[state.listIndex];
       if (!x) return;
@@ -796,6 +819,7 @@
       renderDetail();
       return;
     }
+
     if (state.page === 'hot') {
       const x = (state.hot || [])[state.listIndex];
       if (!x) return;
@@ -804,6 +828,7 @@
       renderDetail();
       return;
     }
+
     if (state.page === 'runs') {
       const r = (state.runs || [])[state.listIndex];
       if (!r) return;
@@ -811,25 +836,6 @@
       state.page = 'detail';
       renderDetail();
       return;
-    }
-    if (state.page === 'settings' || state.page === 'about') {
-      return;
-    }
-  }
-
-  async function voteSelectedTrack() {
-    if (state.page !== 'detail' || state.detailItem?.type !== 'track') return;
-    const t = state.detailItem.data;
-    if (!t?.id) return;
-    try {
-      await api('/api/vote', {
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body: JSON.stringify({ track_id: Number(t.id) }),
-      });
-      await loadAll();
-    } catch (e) {
-      // ignore
     }
   }
 
@@ -858,10 +864,8 @@
     const k = e.key.toLowerCase();
     if (k === 'escape') { goBack(); return; }
     if (k === 'm') { goMenu(); return; }
-
     if (k === 'enter') { openSelected(); return; }
     if (k === ' ') { e.preventDefault(); toggleCheckSelected(); return; }
-
     if (k === 'arrowup') { moveSelection(-1); return; }
     if (k === 'arrowdown') { moveSelection(+1); return; }
   });
@@ -898,7 +902,7 @@
     }
   }
 
-  // ===== Click support =====
+  // ===== Click list support =====
   el.view.addEventListener('click', (e)=>{
     const item = e.target.closest('.item');
     if (!item) return;
@@ -925,14 +929,15 @@
     let dragging = false;
     let lastAngle = 0;
     let accum = 0;
-    const STEP = 18; // degrees per tick
+    const STEP = 18;
 
     function angleFromEvent(ev){
-      const rect = el.wheel.getBoundingClientRect();
+      const rect = el.ring.getBoundingClientRect();
       const cx = rect.left + rect.width/2;
       const cy = rect.top + rect.height/2;
-      const x = (ev.clientX ?? ev.touches?.[0]?.clientX) - cx;
-      const y = (ev.clientY ?? ev.touches?.[0]?.clientY) - cy;
+      const p = ev.touches ? ev.touches[0] : ev;
+      const x = (p.clientX) - cx;
+      const y = (p.clientY) - cy;
       return Math.atan2(y, x) * 180 / Math.PI;
     }
 
@@ -940,7 +945,6 @@
       dragging = true;
       lastAngle = angleFromEvent(ev);
       accum = 0;
-      el.wheel.setPointerCapture?.(ev.pointerId);
       ev.preventDefault();
     }
     function onMove(ev){
@@ -958,52 +962,46 @@
     }
     function onEnd(ev){
       dragging = false;
-      el.wheel.releasePointerCapture?.(ev.pointerId);
       ev.preventDefault();
     }
 
-    // Pointer events
-    el.wheel.addEventListener('pointerdown', onStart, {passive:false});
-    el.wheel.addEventListener('pointermove', onMove, {passive:false});
-    el.wheel.addEventListener('pointerup', onEnd, {passive:false});
-    el.wheel.addEventListener('pointercancel', onEnd, {passive:false});
+    el.ring.addEventListener('touchstart', onStart, {passive:false});
+    el.ring.addEventListener('touchmove', onMove, {passive:false});
+    el.ring.addEventListener('touchend', onEnd, {passive:false});
 
-    // Touch fallback
-    el.wheel.addEventListener('touchstart', onStart, {passive:false});
-    el.wheel.addEventListener('touchmove', onMove, {passive:false});
-    el.wheel.addEventListener('touchend', onEnd, {passive:false});
+    el.ring.addEventListener('pointerdown', onStart, {passive:false});
+    el.ring.addEventListener('pointermove', onMove, {passive:false});
+    el.ring.addEventListener('pointerup', onEnd, {passive:false});
+    el.ring.addEventListener('pointercancel', onEnd, {passive:false});
 
-    // Mouse wheel (desktop)
     el.wheel.addEventListener('wheel', (e)=>{
       e.preventDefault();
       const d = e.deltaY > 0 ? +1 : -1;
       moveSelection(d);
     }, {passive:false});
 
-    // Center button
-    el.center.addEventListener('click', ()=>{
-      if (state.page === 'detail' && state.detailItem?.type === 'track') {
-        voteSelectedTrack();
-      } else {
-        openSelected();
-      }
+    // ✅ OK
+    el.center.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openSelected();
     });
 
-    // Simple MENU / BACK taps (labels are not clickable; use long-press-ish)
-    el.wheel.addEventListener('dblclick', ()=>{
-      // double click = menu
-      goMenu();
-    });
-    el.wheel.addEventListener('contextmenu', (e)=>{
-      e.preventDefault();
-      goBack();
-    });
+    // ✅ MENU/BACK/PLAY/NEXT (폰 탭 100% 동작)
+    function bind(btn, fn){
+      btn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); fn(); });
+      btn.addEventListener('touchend', (e)=>{ e.preventDefault(); e.stopPropagation(); fn(); }, {passive:false});
+    }
+    bind(el.btnMenu, goMenu);
+    bind(el.btnBack, goBack);
+
+    // play/next는 일단 “리스트 이동”으로 맵핑 (원하면 다른 기능으로 바꿔줌)
+    bind(el.btnPlay, ()=>moveSelection(-1));
+    bind(el.btnNext, ()=>moveSelection(+1));
   })();
 
   // First paint
   render();
   loadAll();
-
   </script>
 </body>
 </html>
