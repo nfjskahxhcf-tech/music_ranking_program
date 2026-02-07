@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -32,6 +32,10 @@ def root():
     )
 
 # ✅ PWA 파일들을 루트(/)에서도 서빙 (scope='/' + iOS/카톡 캐시 이슈 방지)
+@app.head("/", include_in_schema=False)
+def root_head():
+    return Response(status_code=200)
+
 @app.get("/index.html", include_in_schema=False)
 def index_html():
     return FileResponse(
