@@ -12,6 +12,8 @@ import re
 import uuid
 import urllib.parse
 import urllib.request
+import csv 
+import io
 
 # ----------------------
 # DB setup (Postgres if DATABASE_URL is set, else SQLite fallback)
@@ -716,6 +718,36 @@ def ranking(from_ts: Optional[str] = None, to_ts: Optional[str] = None):
             "cover_url": cover
         })
     return out
+
+@app.get("/api/export/ranking.json")
+def export_ranking_json(from_ts: Optional[str] = None, to_ts: Optional[str] = None):
+    # 기존 ranking() 로직 그대로 재사용
+    data = ranking(from_ts=from_ts, to_ts=to_ts)
+    # ranking()이 에러 dict 반환할 수도 있으니 그대로 리턴
+    return {"ok": True, "data": data} if isinstance(data, list) else data
+
+
+@app.get("/api/export/ranking.csv")
+def export_ranking_csv(from_ts: Optional[str] = None, to_ts: Optional[str] = None):
+    data = ranking(from_ts=from_ts, to_ts=to_ts)
+    if not isinstance(data, list):
+        return data  # 에러 dict 그대로
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["rank", "track_id", "title", "artist", "votes"])
+
+    for i, t in enumerate(data, start=1):
+        writer.writerow([i, t.get("id"), t.get("title"), t.get("artist"), t.get("votes")])
+
+    csv_text = output.getvalue()
+    filename = f"runrank_ranking_{datetime.now(KST).strftime('%Y%m%d_%H%M')}.csv"
+    return Response(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
 
 
 @app.get("/api/hot_ranking")
