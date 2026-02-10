@@ -124,6 +124,21 @@ def db():
 
 
 def init_db():
+    # --- PG identity check (safe) ---
+    try:
+        if IS_POSTGRES and psycopg is not None:
+            with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn2:
+                with conn2.cursor() as cur2:
+                    cur2.execute("select current_database() as db, inet_server_addr() as host")
+                    info = cur2.fetchone()
+                    # submissions가 아직 없으면 여기서 에러 날 수 있음 (그럼 아래 except로 찍힘)
+                    cur2.execute("select count(*) as n from submissions")
+                    n = cur2.fetchone()["n"]
+            print(f"✅ PG IDENT db={info['db']} host={info['host']} submissions={n}")
+    except Exception as e:
+        print("❌ PG IDENT failed:", repr(e))
+    # -------------------------------
+
     conn = db()
     cur = conn.cursor()
 
@@ -201,6 +216,7 @@ def init_db():
 
 
 init_db()
+
 
 
 class SubmitBody(BaseModel):
