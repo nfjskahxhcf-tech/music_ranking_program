@@ -9,6 +9,24 @@ import json
 import sqlite3
 import math
 import os
+# --- PG identity check (no IS_POSTGRES) ---
+try:
+    DB_URL = os.getenv("DATABASE_URL")
+    if DB_URL:
+        import psycopg
+        from psycopg.rows import dict_row
+
+        with psycopg.connect(DB_URL, row_factory=dict_row) as conn2:
+            with conn2.cursor() as cur2:
+                cur2.execute("select current_database() as db, inet_server_addr() as host")
+                info = cur2.fetchone()
+                cur2.execute("select current_schema() as schema")
+                schema = cur2.fetchone()["schema"]
+        print(f"✅ PG IDENT db={info['db']} schema={schema} host={info['host']}")
+except Exception as e:
+    print("❌ PG IDENT failed:", repr(e))
+# -----------------------------------------
+
 print("✅ HAS DATABASE_URL:", bool(os.getenv("DATABASE_URL")))
 print("✅ DATABASE_URL prefix:", (os.getenv("DATABASE_URL") or "")[:12])
 import re
