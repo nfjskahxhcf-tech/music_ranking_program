@@ -9,7 +9,8 @@ import json
 import sqlite3
 import math
 import os
-print("✅ DB MODE:", "POSTGRES" if os.getenv("DATABASE_URL") else "SQLITE")
+print("✅ HAS DATABASE_URL:", bool(os.getenv("DATABASE_URL")))
+print("✅ DATABASE_URL prefix:", (os.getenv("DATABASE_URL") or "")[:12])
 import re
 import uuid
 import urllib.parse
