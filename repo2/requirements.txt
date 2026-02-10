@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+
+python-multipart
+
+# Postgres (Render) 지원
+psycopg[binary]
+
