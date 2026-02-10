@@ -1,225 +1,84 @@
-try:
-    import psycopg
-    print("✅ psycopg import OK")
-except Exception as e:
-    print("❌ psycopg import FAIL:", repr(e))
-
-
 from fastapi import FastAPI, UploadFile, File, Form, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Tuple
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import json
-import sqlite3
 import math
 import os
-print("✅ HAS DATABASE_URL:", bool(os.getenv("DATABASE_URL")))
-print("✅ DATABASE_URL prefix:", (os.getenv("DATABASE_URL") or "")[:12])
 import re
 import uuid
 import urllib.parse
 import urllib.request
 
+# ----------------------
+# DB setup (Postgres if DATABASE_URL is set, else SQLite fallback)
+# ----------------------
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
+
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+except Exception:
+    psycopg = None
+    dict_row = None
+
+import sqlite3
+
+# ----------------------
+# App / Paths
+# ----------------------
 app = FastAPI()
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"  # 남겨둬도 됨
 
-# ✅ 정적 파일을 /static 으로 서빙 (runrank/static 폴더)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-# ✅ 홈(/)은 무조건 static/index.html을 반환 (templates 혼선 제거)
-@app.get("/", include_in_schema=False)
-def root():
-    return FileResponse(
-        str(STATIC_DIR / "index.html"),
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
-
-
-@app.head("/", include_in_schema=False)
-def root_head():
-    return Response(status_code=200)
-
-
-# ✅ PWA 파일들을 루트(/)에서도 서빙 (scope='/' + iOS/카톡 캐시 이슈 방지)
-@app.head("/", include_in_schema=False)
-def root_head():
-    return Response(status_code=200)
-
-@app.get("/index.html", include_in_schema=False)
-def index_html():
-    return FileResponse(
-        str(STATIC_DIR / "index.html"),
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
-
-@app.get("/service-worker.js", include_in_schema=False)
-def service_worker():
-    return FileResponse(
-        str(STATIC_DIR / "service-worker.js"),
-        media_type="application/javascript",
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
-
-@app.get("/manifest.webmanifest", include_in_schema=False)
-def manifest():
-    return FileResponse(
-        str(STATIC_DIR / "manifest.webmanifest"),
-        media_type="application/manifest+json",
-        headers={"Cache-Control": "no-store, max-age=0"},
-    )
-
-# 아이콘/파비콘/터치아이콘도 루트 경로로 제공 (index.html에서 /icon-192.png 등으로 참조)
-@app.get("/favicon.ico", include_in_schema=False)
-def favicon():
-    return FileResponse(str(STATIC_DIR / "favicon.ico"))
-
-@app.get("/icon-192.png", include_in_schema=False)
-def icon_192():
-    return FileResponse(str(STATIC_DIR / "icon-192.png"))
-
-@app.get("/icon-512.png", include_in_schema=False)
-def icon_512():
-    return FileResponse(str(STATIC_DIR / "icon-512.png"))
-
-@app.get("/apple-touch-icon.png", include_in_schema=False)
-def apple_touch_icon():
-    return FileResponse(str(STATIC_DIR / "apple-touch-icon.png"))
-
-@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
-def apple_touch_icon_precomposed():
-    return FileResponse(str(STATIC_DIR / "apple-touch-icon-precomposed.png"))
-
-@app.get("/apple-touch-icon-120x120.png", include_in_schema=False)
-def apple_touch_icon_120():
-    return FileResponse(str(STATIC_DIR / "apple-touch-icon-120x120.png"))
-
-@app.get("/apple-touch-icon-120x120-precomposed.png", include_in_schema=False)
-def apple_touch_icon_120_precomposed():
-    return FileResponse(str(STATIC_DIR / "apple-touch-icon-120x120-precomposed.png"))
-
-
+# SQLite path (fallback only)
 DB_PATH = Path(os.environ.get("RUNRANK_DB_PATH", str(BASE_DIR / "runrank.db")))
+
 KST = timezone(timedelta(hours=9))
 
 UPLOAD_DIR = BASE_DIR / "static" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def load_tracks() -> List[Dict[str, Any]]:
-    path = BASE_DIR / "tracks.json"
-    if not path.exists():
-        raise FileNotFoundError("tracks.json 파일이 없습니다. tracks.json 셀을 먼저 실행하세요.")
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-TRACKS = load_tracks()
-TRACK_IDS = {t["id"] for t in TRACKS}
-TRACK_BY_ID = {t["id"]: t for t in TRACKS}
+# ----------------------
+# Helpers
+# ----------------------
+def is_postgres() -> bool:
+    return bool(DATABASE_URL)
 
 
 def db():
+    """
+    Returns a DB connection:
+    - Postgres (psycopg) if DATABASE_URL exists
+    - SQLite otherwise (local dev)
+    """
+    if is_postgres():
+        if psycopg is None:
+            raise RuntimeError("DATABASE_URL is set but psycopg is not installed.")
+        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def init_db():
-
-    conn = db()
-    cur = conn.cursor()
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            track_id INTEGER NOT NULL,
-            user TEXT NOT NULL,
-            ts_epoch INTEGER NOT NULL,
-            vote_day_kst TEXT NOT NULL
-        )
-    """)
-    cur.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_per_day
-        ON submissions(track_id, user, vote_day_kst)
-    """)
-
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_track ON submissions(track_id)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_ts ON submissions(ts_epoch)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_day ON submissions(vote_day_kst)")
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS vote_batches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user TEXT NOT NULL,
-            vote_day_kst TEXT NOT NULL,
-            ts_epoch INTEGER NOT NULL,
-            run_id INTEGER
-        )
-    """)
-    cur.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_batch_user_day
-        ON vote_batches(user, vote_day_kst)
-    """)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_vote_batches_day ON vote_batches(vote_day_kst)")
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS track_covers (
-            track_id INTEGER PRIMARY KEY,
-            cover_url TEXT NOT NULL,
-            source TEXT NOT NULL,
-            updated_ts_epoch INTEGER NOT NULL
-        )
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS runs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user TEXT NOT NULL,
-            ts_epoch INTEGER NOT NULL,
-            day_kst TEXT NOT NULL,
-            date_label TEXT NOT NULL,
-            distance_km REAL NOT NULL,
-            duration_sec INTEGER NOT NULL,
-            track_id INTEGER,
-            photo_url TEXT
-        )
-    """)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_ts ON runs(ts_epoch)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_user ON runs(user)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_day ON runs(day_kst)")
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS run_tracks (
-            run_id INTEGER NOT NULL,
-            track_id INTEGER NOT NULL,
-            PRIMARY KEY(run_id, track_id)
-        )
-    """)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_run ON run_tracks(run_id)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_track ON run_tracks(track_id)")
-
-    conn.commit()
-    conn.close()
+def ph() -> str:
+    """SQL placeholder for a single parameter."""
+    return "%s" if is_postgres() else "?"
 
 
-init_db()
-
-
-
-class SubmitBody(BaseModel):
-    track_id: Optional[int] = None
-    track_ids: Optional[List[int]] = None
-    user: Optional[str] = None
-
-
-class CoverResolveBody(BaseModel):
-    track_id: int
+def make_in_clause(n: int) -> str:
+    """Return '(?,?,?)' or '(%s,%s,...)' depending on DB."""
+    if n <= 0:
+        return "(NULL)"
+    return "(" + ",".join([ph()] * n) + ")"
 
 
 def now_utc_epoch() -> int:
@@ -238,10 +97,295 @@ def parse_iso_to_epoch(s: str) -> int:
     return int(dt.timestamp())
 
 
+def sanitize_filename(name: str) -> str:
+    name = name.strip()
+    name = re.sub(r"[^a-zA-Z0-9._-]+", "_", name)
+    name = re.sub(r"_+", "_", name)
+    return name[:120] if name else "file"
+
+
+def calc_pace_str(distance_km: float, duration_sec: int) -> str:
+    if distance_km <= 0:
+        return "-"
+    sec_per_km = duration_sec / distance_km
+    m = int(sec_per_km // 60)
+    s = int(round(sec_per_km - m * 60))
+    if s == 60:
+        m += 1
+        s = 0
+    return f"{m}:{str(s).zfill(2)}/km"
+
+
+# ----------------------
+# Tracks
+# ----------------------
+def load_tracks() -> List[Dict[str, Any]]:
+    path = BASE_DIR / "tracks.json"
+    if not path.exists():
+        raise FileNotFoundError("tracks.json 파일이 없습니다. tracks.json 셀을 먼저 실행하세요.")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+TRACKS = load_tracks()
+TRACK_IDS = {t["id"] for t in TRACKS}
+TRACK_BY_ID = {t["id"]: t for t in TRACKS}
+
+
+# ----------------------
+# PWA / Static routes
+# ----------------------
+@app.get("/", include_in_schema=False)
+def root():
+    return FileResponse(
+        str(STATIC_DIR / "index.html"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@app.head("/", include_in_schema=False)
+def root_head():
+    return Response(status_code=200)
+
+
+@app.get("/index.html", include_in_schema=False)
+def index_html():
+    return FileResponse(
+        str(STATIC_DIR / "index.html"),
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@app.get("/service-worker.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(
+        str(STATIC_DIR / "service-worker.js"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest():
+    return FileResponse(
+        str(STATIC_DIR / "manifest.webmanifest"),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(str(STATIC_DIR / "favicon.ico"))
+
+
+@app.get("/icon-192.png", include_in_schema=False)
+def icon_192():
+    return FileResponse(str(STATIC_DIR / "icon-192.png"))
+
+
+@app.get("/icon-512.png", include_in_schema=False)
+def icon_512():
+    return FileResponse(str(STATIC_DIR / "icon-512.png"))
+
+
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+def apple_touch_icon():
+    return FileResponse(str(STATIC_DIR / "apple-touch-icon.png"))
+
+
+@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+def apple_touch_icon_precomposed():
+    return FileResponse(str(STATIC_DIR / "apple-touch-icon-precomposed.png"))
+
+
+@app.get("/apple-touch-icon-120x120.png", include_in_schema=False)
+def apple_touch_icon_120():
+    return FileResponse(str(STATIC_DIR / "apple-touch-icon-120x120.png"))
+
+
+@app.get("/apple-touch-icon-120x120-precomposed.png", include_in_schema=False)
+def apple_touch_icon_120_precomposed():
+    return FileResponse(str(STATIC_DIR / "apple-touch-icon-120x120-precomposed.png"))
+
+
+# ----------------------
+# DB schema init
+# ----------------------
+def init_db():
+    conn = db()
+    cur = conn.cursor()
+
+    if is_postgres():
+        # Postgres schema
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS submissions (
+                id BIGSERIAL PRIMARY KEY,
+                track_id INTEGER NOT NULL,
+                user_name TEXT NOT NULL,
+                ts_epoch BIGINT NOT NULL,
+                vote_day_kst TEXT NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_per_day
+            ON submissions(track_id, user_name, vote_day_kst)
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_track ON submissions(track_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_ts ON submissions(ts_epoch)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_day ON submissions(vote_day_kst)")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS vote_batches (
+                id BIGSERIAL PRIMARY KEY,
+                user_name TEXT NOT NULL,
+                vote_day_kst TEXT NOT NULL,
+                ts_epoch BIGINT NOT NULL,
+                run_id BIGINT
+            )
+        """)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_batch_user_day
+            ON vote_batches(user_name, vote_day_kst)
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_vote_batches_day ON vote_batches(vote_day_kst)")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS track_covers (
+                track_id INTEGER PRIMARY KEY,
+                cover_url TEXT NOT NULL,
+                source TEXT NOT NULL,
+                updated_ts_epoch BIGINT NOT NULL
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS runs (
+                id BIGSERIAL PRIMARY KEY,
+                user_name TEXT NOT NULL,
+                ts_epoch BIGINT NOT NULL,
+                day_kst TEXT NOT NULL,
+                date_label TEXT NOT NULL,
+                distance_km DOUBLE PRECISION NOT NULL,
+                duration_sec INTEGER NOT NULL,
+                track_id INTEGER,
+                photo_url TEXT
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_ts ON runs(ts_epoch)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_user ON runs(user_name)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_day ON runs(day_kst)")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS run_tracks (
+                run_id BIGINT NOT NULL,
+                track_id INTEGER NOT NULL,
+                PRIMARY KEY(run_id, track_id)
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_run ON run_tracks(run_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_track ON run_tracks(track_id)")
+
+    else:
+        # SQLite schema (fallback)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL,
+                user TEXT NOT NULL,
+                ts_epoch INTEGER NOT NULL,
+                vote_day_kst TEXT NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_per_day
+            ON submissions(track_id, user, vote_day_kst)
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_track ON submissions(track_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_ts ON submissions(ts_epoch)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_submissions_day ON submissions(vote_day_kst)")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS vote_batches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user TEXT NOT NULL,
+                vote_day_kst TEXT NOT NULL,
+                ts_epoch INTEGER NOT NULL,
+                run_id INTEGER
+            )
+        """)
+        cur.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_vote_batch_user_day
+            ON vote_batches(user, vote_day_kst)
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_vote_batches_day ON vote_batches(vote_day_kst)")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS track_covers (
+                track_id INTEGER PRIMARY KEY,
+                cover_url TEXT NOT NULL,
+                source TEXT NOT NULL,
+                updated_ts_epoch INTEGER NOT NULL
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user TEXT NOT NULL,
+                ts_epoch INTEGER NOT NULL,
+                day_kst TEXT NOT NULL,
+                date_label TEXT NOT NULL,
+                distance_km REAL NOT NULL,
+                duration_sec INTEGER NOT NULL,
+                track_id INTEGER,
+                photo_url TEXT
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_ts ON runs(ts_epoch)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_user ON runs(user)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_runs_day ON runs(day_kst)")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS run_tracks (
+                run_id INTEGER NOT NULL,
+                track_id INTEGER NOT NULL,
+                PRIMARY KEY(run_id, track_id)
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_run ON run_tracks(run_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_run_tracks_track ON run_tracks(track_id)")
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+# ----------------------
+# Models
+# ----------------------
+class SubmitBody(BaseModel):
+    track_id: Optional[int] = None
+    track_ids: Optional[List[int]] = None
+    user: Optional[str] = None
+
+
+class CoverResolveBody(BaseModel):
+    track_id: int
+
+
+# ----------------------
+# Covers
+# ----------------------
 def get_cover_from_cache(track_id: int) -> Optional[str]:
     conn = db()
     cur = conn.cursor()
-    cur.execute("SELECT cover_url FROM track_covers WHERE track_id=?", (track_id,))
+    if is_postgres():
+        cur.execute(f"SELECT cover_url FROM track_covers WHERE track_id={ph()}", (track_id,))
+    else:
+        cur.execute("SELECT cover_url FROM track_covers WHERE track_id=?", (track_id,))
     row = cur.fetchone()
     conn.close()
     return row["cover_url"] if row else None
@@ -250,14 +394,27 @@ def get_cover_from_cache(track_id: int) -> Optional[str]:
 def upsert_cover(track_id: int, cover_url: str, source: str):
     conn = db()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO track_covers(track_id, cover_url, source, updated_ts_epoch)
-        VALUES(?, ?, ?, ?)
-        ON CONFLICT(track_id) DO UPDATE SET
-          cover_url=excluded.cover_url,
-          source=excluded.source,
-          updated_ts_epoch=excluded.updated_ts_epoch
-    """, (track_id, cover_url, source, now_utc_epoch()))
+    ts = now_utc_epoch()
+
+    if is_postgres():
+        cur.execute(f"""
+            INSERT INTO track_covers(track_id, cover_url, source, updated_ts_epoch)
+            VALUES({ph()}, {ph()}, {ph()}, {ph()})
+            ON CONFLICT(track_id) DO UPDATE SET
+              cover_url=EXCLUDED.cover_url,
+              source=EXCLUDED.source,
+              updated_ts_epoch=EXCLUDED.updated_ts_epoch
+        """, (track_id, cover_url, source, ts))
+    else:
+        cur.execute("""
+            INSERT INTO track_covers(track_id, cover_url, source, updated_ts_epoch)
+            VALUES(?, ?, ?, ?)
+            ON CONFLICT(track_id) DO UPDATE SET
+              cover_url=excluded.cover_url,
+              source=excluded.source,
+              updated_ts_epoch=excluded.updated_ts_epoch
+        """, (track_id, cover_url, source, ts))
+
     conn.commit()
     conn.close()
 
@@ -281,28 +438,12 @@ def itunes_search_cover(title: str, artist: str) -> Optional[str]:
         return None
 
 
-def sanitize_filename(name: str) -> str:
-    name = name.strip()
-    name = re.sub(r"[^a-zA-Z0-9._-]+", "_", name)
-    name = re.sub(r"_+", "_", name)
-    return name[:120] if name else "file"
-
-
-def calc_pace_str(distance_km: float, duration_sec: int) -> str:
-    if distance_km <= 0:
-        return "-"
-    sec_per_km = duration_sec / distance_km
-    m = int(sec_per_km // 60)
-    s = int(round(sec_per_km - m * 60))
-    if s == 60:
-        m += 1
-        s = 0
-    return f"{m}:{str(s).zfill(2)}/km"
-
-
+# ----------------------
+# Basic APIs
+# ----------------------
 @app.get("/api/health")
 def health():
-    return {"ok": True, "tracks_count": len(TRACKS)}
+    return {"ok": True, "tracks_count": len(TRACKS), "db": ("postgres" if is_postgres() else "sqlite")}
 
 
 @app.get("/api/tracks")
@@ -371,6 +512,55 @@ def resolve_all_covers(limit: int = 10):
     return {"ok": True, "tried": tried, "updated": updated, "limit": n}
 
 
+# ----------------------
+# Voting
+# ----------------------
+def _select_vote_batch(cur, user: str, vote_day_kst: str):
+    if is_postgres():
+        cur.execute(
+            f"SELECT id, run_id FROM vote_batches WHERE user_name={ph()} AND vote_day_kst={ph()} LIMIT 1",
+            (user, vote_day_kst),
+        )
+    else:
+        cur.execute(
+            "SELECT id, run_id FROM vote_batches WHERE user=? AND vote_day_kst=? LIMIT 1",
+            (user, vote_day_kst),
+        )
+    return cur.fetchone()
+
+
+def _insert_vote_batch(cur, user: str, vote_day_kst: str, ts_epoch: int, run_id: Optional[int]):
+    if is_postgres():
+        cur.execute(
+            f"INSERT INTO vote_batches(user_name, vote_day_kst, ts_epoch, run_id) VALUES({ph()}, {ph()}, {ph()}, {ph()}) RETURNING id",
+            (user, vote_day_kst, ts_epoch, run_id),
+        )
+        return cur.fetchone()["id"]
+    else:
+        cur.execute(
+            "INSERT INTO vote_batches(user, vote_day_kst, ts_epoch, run_id) VALUES(?, ?, ?, ?)",
+            (user, vote_day_kst, ts_epoch, run_id),
+        )
+        return cur.lastrowid
+
+
+def _insert_submission_ignore(cur, tid: int, user: str, ts_epoch: int, vote_day_kst: str) -> int:
+    if is_postgres():
+        cur.execute(
+            f"INSERT INTO submissions(track_id, user_name, ts_epoch, vote_day_kst) VALUES({ph()}, {ph()}, {ph()}, {ph()}) "
+            f"ON CONFLICT(track_id, user_name, vote_day_kst) DO NOTHING",
+            (tid, user, ts_epoch, vote_day_kst),
+        )
+        # psycopg rowcount works for DO NOTHING (0 if conflict, 1 if inserted)
+        return 1 if cur.rowcount == 1 else 0
+    else:
+        cur.execute(
+            "INSERT OR IGNORE INTO submissions(track_id, user, ts_epoch, vote_day_kst) VALUES(?, ?, ?, ?)",
+            (tid, user, ts_epoch, vote_day_kst),
+        )
+        return 1 if cur.rowcount == 1 else 0
+
+
 @app.post("/api/submit")
 def submit_vote(body: SubmitBody):
     user = (body.user or "").strip()
@@ -393,11 +583,7 @@ def submit_vote(body: SubmitBody):
     conn = db()
     cur = conn.cursor()
 
-    cur.execute(
-        "SELECT id, run_id FROM vote_batches WHERE user=? AND vote_day_kst=? LIMIT 1",
-        (user, vote_day_kst),
-    )
-    already_batch = cur.fetchone()
+    already_batch = _select_vote_batch(cur, user, vote_day_kst)
     if already_batch:
         conn.close()
         return {
@@ -408,20 +594,11 @@ def submit_vote(body: SubmitBody):
             "run_id": already_batch["run_id"],
         }
 
-    cur.execute(
-        "INSERT INTO vote_batches(user, vote_day_kst, ts_epoch, run_id) VALUES(?, ?, ?, NULL)",
-        (user, vote_day_kst, ts_epoch),
-    )
-    batch_id = cur.lastrowid
+    batch_id = _insert_vote_batch(cur, user, vote_day_kst, ts_epoch, None)
 
     inserted = 0
     for tid in track_ids:
-        cur.execute(
-            "INSERT OR IGNORE INTO submissions(track_id, user, ts_epoch, vote_day_kst) VALUES(?, ?, ?, ?)",
-            (tid, user, ts_epoch, vote_day_kst),
-        )
-        if cur.rowcount == 1:
-            inserted += 1
+        inserted += _insert_submission_ignore(cur, tid, user, ts_epoch, vote_day_kst)
 
     conn.commit()
     conn.close()
@@ -449,11 +626,7 @@ def try_auto_vote_tracks(user: str, track_ids: List[int], run_id: Optional[int] 
     conn = db()
     cur = conn.cursor()
 
-    cur.execute(
-        "SELECT id, run_id FROM vote_batches WHERE user=? AND vote_day_kst=? LIMIT 1",
-        (user, vote_day_kst),
-    )
-    already_batch = cur.fetchone()
+    already_batch = _select_vote_batch(cur, user, vote_day_kst)
     if already_batch:
         conn.close()
         return {
@@ -464,20 +637,11 @@ def try_auto_vote_tracks(user: str, track_ids: List[int], run_id: Optional[int] 
             "run_id": already_batch["run_id"],
         }
 
-    cur.execute(
-        "INSERT INTO vote_batches(user, vote_day_kst, ts_epoch, run_id) VALUES(?, ?, ?, ?)",
-        (user, vote_day_kst, ts_epoch, run_id),
-    )
-    batch_id = cur.lastrowid
+    batch_id = _insert_vote_batch(cur, user, vote_day_kst, ts_epoch, run_id)
 
     inserted = 0
     for tid in track_ids:
-        cur.execute(
-            "INSERT OR IGNORE INTO submissions(track_id, user, ts_epoch, vote_day_kst) VALUES(?, ?, ?, ?)",
-            (tid, user, ts_epoch, vote_day_kst),
-        )
-        if cur.rowcount == 1:
-            inserted += 1
+        inserted += _insert_submission_ignore(cur, tid, user, ts_epoch, vote_day_kst)
 
     conn.commit()
     conn.close()
@@ -491,6 +655,9 @@ def try_auto_vote_tracks(user: str, track_ids: List[int], run_id: Optional[int] 
     }
 
 
+# ----------------------
+# Ranking APIs
+# ----------------------
 @app.get("/api/ranking")
 def ranking(from_ts: Optional[str] = None, to_ts: Optional[str] = None):
     where = []
@@ -498,14 +665,14 @@ def ranking(from_ts: Optional[str] = None, to_ts: Optional[str] = None):
 
     if from_ts:
         try:
-            where.append("ts_epoch >= ?")
+            where.append(f"ts_epoch >= {ph()}")
             params.append(parse_iso_to_epoch(from_ts))
         except Exception:
             return {"ok": False, "error": "from_ts must be ISO format like 2026-02-01T00:00:00"}
 
     if to_ts:
         try:
-            where.append("ts_epoch < ?")
+            where.append(f"ts_epoch < {ph()}")
             params.append(parse_iso_to_epoch(to_ts))
         except Exception:
             return {"ok": False, "error": "to_ts must be ISO format like 2026-02-08T00:00:00"}
@@ -514,16 +681,27 @@ def ranking(from_ts: Optional[str] = None, to_ts: Optional[str] = None):
 
     conn = db()
     cur = conn.cursor()
-    cur.execute(f"""
-        SELECT track_id, COUNT(*) AS votes
-        FROM submissions
-        {where_sql}
-        GROUP BY track_id
-    """, params)
+
+    if is_postgres():
+        cur.execute(f"""
+            SELECT track_id, COUNT(*) AS votes
+            FROM submissions
+            {where_sql}
+            GROUP BY track_id
+        """, params)
+    else:
+        # SQLite uses same constructed where_sql already with '?', so ok
+        cur.execute(f"""
+            SELECT track_id, COUNT(*) AS votes
+            FROM submissions
+            {where_sql}
+            GROUP BY track_id
+        """, params)
+
     rows = cur.fetchall()
     conn.close()
 
-    counts: Dict[int, int] = {r["track_id"]: r["votes"] for r in rows}
+    counts: Dict[int, int] = {r["track_id"]: int(r["votes"]) for r in rows}
     ranked = sorted(TRACKS, key=lambda t: counts.get(t["id"], 0), reverse=True)
 
     out = []
@@ -550,15 +728,17 @@ def hot_ranking(tau_hours: float = 24.0):
 
     conn = db()
     cur = conn.cursor()
-    cur.execute("SELECT track_id, ts_epoch FROM submissions")
+    if is_postgres():
+        cur.execute("SELECT track_id, ts_epoch FROM submissions")
+    else:
+        cur.execute("SELECT track_id, ts_epoch FROM submissions")
     rows = cur.fetchall()
     conn.close()
 
     scores: Dict[int, float] = {t["id"]: 0.0 for t in TRACKS}
-
     for r in rows:
         tid = r["track_id"]
-        age = max(0, now_epoch - r["ts_epoch"])
+        age = max(0, now_epoch - int(r["ts_epoch"]))
         w = math.exp(-age / tau)
         if tid in scores:
             scores[tid] += w
@@ -580,9 +760,8 @@ def hot_ranking(tau_hours: float = 24.0):
 
 
 # ----------------------
-# ✅ Runs API (photo upload)
+# Runs API (photo upload)
 # ----------------------
-
 @app.post("/api/runs")
 async def create_run(
     user: str = Form(...),
@@ -640,24 +819,44 @@ async def create_run(
 
     conn = db()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO runs(user, ts_epoch, day_kst, date_label, distance_km, duration_sec, track_id, photo_url)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-    """, (user, ts_epoch, day_kst, date_label, float(distance_km), int(duration_sec), track_id, photo_url))
-    conn.commit()
-    run_id = cur.lastrowid
 
+    if is_postgres():
+        cur.execute(
+            f"""
+            INSERT INTO runs(user_name, ts_epoch, day_kst, date_label, distance_km, duration_sec, track_id, photo_url)
+            VALUES({ph()}, {ph()}, {ph()}, {ph()}, {ph()}, {ph()}, {ph()}, {ph()})
+            RETURNING id
+            """,
+            (user, ts_epoch, day_kst, date_label, float(distance_km), int(duration_sec), track_id, photo_url),
+        )
+        run_id = cur.fetchone()["id"]
+    else:
+        cur.execute("""
+            INSERT INTO runs(user, ts_epoch, day_kst, date_label, distance_km, duration_sec, track_id, photo_url)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user, ts_epoch, day_kst, date_label, float(distance_km), int(duration_sec), track_id, photo_url))
+        conn.commit()
+        run_id = cur.lastrowid
+
+    # run_tracks
     for tid in parsed_track_ids:
-        cur.execute("INSERT OR IGNORE INTO run_tracks(run_id, track_id) VALUES(?, ?)", (run_id, tid))
+        if is_postgres():
+            cur.execute(
+                f"INSERT INTO run_tracks(run_id, track_id) VALUES({ph()}, {ph()}) ON CONFLICT DO NOTHING",
+                (run_id, tid),
+            )
+        else:
+            cur.execute("INSERT OR IGNORE INTO run_tracks(run_id, track_id) VALUES(?, ?)", (run_id, tid))
+
     conn.commit()
     conn.close()
 
     pace = calc_pace_str(float(distance_km), int(duration_sec))
-    vote_result = try_auto_vote_tracks(user, parsed_track_ids, run_id=run_id)
+    vote_result = try_auto_vote_tracks(user, parsed_track_ids, run_id=int(run_id))
 
     return {
         "ok": True,
-        "id": run_id,
+        "id": int(run_id),
         "day_kst": day_kst,
         "pace": pace,
         "photo_url": photo_url,
@@ -673,34 +872,43 @@ def list_runs(user: Optional[str] = None, limit: int = 30):
     cur = conn.cursor()
 
     if user and user.strip():
-        cur.execute("SELECT * FROM runs WHERE user=? ORDER BY ts_epoch DESC LIMIT ?", (user.strip(), n))
+        if is_postgres():
+            cur.execute(
+                f"SELECT * FROM runs WHERE user_name={ph()} ORDER BY ts_epoch DESC LIMIT {ph()}",
+                (user.strip(), n),
+            )
+        else:
+            cur.execute("SELECT * FROM runs WHERE user=? ORDER BY ts_epoch DESC LIMIT ?", (user.strip(), n))
     else:
-        cur.execute("SELECT * FROM runs ORDER BY ts_epoch DESC LIMIT ?", (n,))
+        if is_postgres():
+            cur.execute(f"SELECT * FROM runs ORDER BY ts_epoch DESC LIMIT {ph()}", (n,))
+        else:
+            cur.execute("SELECT * FROM runs ORDER BY ts_epoch DESC LIMIT ?", (n,))
     rows = cur.fetchall()
 
     run_ids = [r["id"] for r in rows]
-    tracks_by_run: Dict[int, List[int]] = {rid: [] for rid in run_ids}
+    tracks_by_run: Dict[int, List[int]] = {int(rid): [] for rid in run_ids}
+
     if run_ids:
-        q = "SELECT run_id, track_id FROM run_tracks WHERE run_id IN (%s) ORDER BY run_id" % (
-            ",".join(["?"] * len(run_ids))
-        )
-        cur.execute(q, run_ids)
+        in_clause = make_in_clause(len(run_ids))
+        cur.execute(f"SELECT run_id, track_id FROM run_tracks WHERE run_id IN {in_clause} ORDER BY run_id", run_ids)
         for rr in cur.fetchall():
-            tracks_by_run.setdefault(rr["run_id"], []).append(rr["track_id"])
+            tracks_by_run.setdefault(int(rr["run_id"]), []).append(int(rr["track_id"]))
 
     conn.close()
 
     out = []
     for r in rows:
         tid = r["track_id"]
-        t = TRACK_BY_ID.get(tid) if tid is not None else None
-        run_track_ids = tracks_by_run.get(r["id"], [])
+        t = TRACK_BY_ID.get(int(tid)) if tid is not None else None
+        rid = int(r["id"])
+        run_track_ids = tracks_by_run.get(rid, [])
         if (not run_track_ids) and (tid is not None):
-            run_track_ids = [tid]
+            run_track_ids = [int(tid)]
 
         tracks_info = []
         for x in run_track_ids:
-            tt = TRACK_BY_ID.get(x)
+            tt = TRACK_BY_ID.get(int(x))
             if tt:
                 tracks_info.append({
                     "id": tt["id"],
@@ -710,15 +918,19 @@ def list_runs(user: Optional[str] = None, limit: int = 30):
                 })
 
         out.append({
-            "id": r["id"],
-            "user": r["user"],
-            "ts_epoch": r["ts_epoch"],
+            "id": rid,
+            "user": (r["user_name"] if is_postgres() else r["user"]),
+            "ts_epoch": int(r["ts_epoch"]),
             "day_kst": r["day_kst"],
             "date_label": r["date_label"],
-            "distance_km": r["distance_km"],
-            "duration_sec": r["duration_sec"],
-            "pace": calc_pace_str(r["distance_km"], r["duration_sec"]),
-            "track": ({"id": t["id"], "title": t["title"], "artist": t["artist"], "cover_url": (t.get("cover_url") or get_cover_from_cache(t["id"]))} if t else None),
+            "distance_km": float(r["distance_km"]),
+            "duration_sec": int(r["duration_sec"]),
+            "pace": calc_pace_str(float(r["distance_km"]), int(r["duration_sec"])),
+            "track": (
+                {"id": t["id"], "title": t["title"], "artist": t["artist"],
+                 "cover_url": (t.get("cover_url") or get_cover_from_cache(t["id"]))}
+                if t else None
+            ),
             "tracks": tracks_info,
             "photo_url": r["photo_url"]
         })
