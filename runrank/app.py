@@ -1,3 +1,10 @@
+try:
+    import psycopg
+    print("✅ psycopg import OK")
+except Exception as e:
+    print("❌ psycopg import FAIL:", repr(e))
+
+
 from fastapi import FastAPI, UploadFile, File, Form, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
