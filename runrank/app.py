@@ -9,6 +9,7 @@ import json
 import sqlite3
 import math
 import os
+print("✅ DB MODE:", "POSTGRES" if os.getenv("DATABASE_URL") else "SQLITE")
 import re
 import uuid
 import urllib.parse
