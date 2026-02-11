@@ -1025,6 +1025,58 @@
   });
 })();
 </script>
+<script>
+/**
+ * ✅ 메뉴 터치/클릭을 강제로 살림 (이벤트 위임)
+ * - 메뉴 항목(li, button, a, div 등) 무엇이든 텍스트로 판별해서 동작
+ * - ipod.js가 내부적으로 키보드/휠 이벤트만 받는 경우에도 터치로 트리거 가능
+ */
+(function () {
+  const pickAction = (el) => {
+    const t = (el?.innerText || el?.textContent || "").trim().toLowerCase();
+    if (!t) return null;
+    if (t.includes("tracks")) return "tracks";
+    if (t.includes("ranking")) return "ranking";
+    if (t.includes("hot")) return "hot_ranking";
+    if (t.includes("runs")) return "runs";
+    return null;
+  };
+
+  const fireKey = (key) => window.dispatchEvent(new KeyboardEvent("keydown", { key }));
+  const fireEnter = () => fireKey("Enter");
+
+  document.addEventListener("click", (e) => {
+    const item = e.target.closest("li, button, a, [role='menuitem'], .menu-item, .item");
+    if (!item) return;
+    const action = pickAction(item);
+    if (!action) return;
+
+    // ipod.js가 선택 이동 후 Enter로 확정하는 방식이라면:
+    // 1) 해당 항목을 선택 상태로 만들고(클래스 있을 때)
+    // 2) Enter를 쏴줌
+    try {
+      // 선택 클래스가 있다면 강제 부여 (있어도/없어도 무해)
+      document.querySelectorAll(".selected, .active").forEach(x => x.classList.remove("selected", "active"));
+      item.classList.add("selected", "active");
+    } catch {}
+
+    fireEnter();
+  }, { passive: true });
+
+  document.addEventListener("touchstart", (e) => {
+    const item = e.target.closest("li, button, a, [role='menuitem'], .menu-item, .item");
+    if (!item) return;
+    const action = pickAction(item);
+    if (!action) return;
+    // iOS에서 touchstart가 click보다 안정적이라 여기서도 Enter 트리거
+    try {
+      document.querySelectorAll(".selected, .active").forEach(x => x.classList.remove("selected", "active"));
+      item.classList.add("selected", "active");
+    } catch {}
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+  }, { passive: true });
+})();
+</script>
 </body>
 </html>
 
