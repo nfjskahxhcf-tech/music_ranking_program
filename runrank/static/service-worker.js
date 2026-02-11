@@ -2,7 +2,7 @@
    - Cache the shell (index + manifest + icons)
    - Network-first for API (always try fresh)
 */
-const CACHE_NAME = "runrank-shell-v103";
+const CACHE_NAME = "runrank-shell-v104";
 
 const SHELL = [
   "/",                    // index.html (html=True라 /가 index 역할)
@@ -44,10 +44,18 @@ function isApi(url) {
   }
 }
 
+
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
   if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  if (url.pathname.startsWith("/static/uploads/")) {
+    event.respondWith(fetch(req));
+    return;
+  }
 
   // ✅ SPA 네비게이션(/, /index.html 등)은 shell로
   if (req.mode === "navigate") {
