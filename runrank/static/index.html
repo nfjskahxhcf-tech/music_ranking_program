@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>RunRank</title>
+  <title>RS music app</title>
 
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0f0f12">
@@ -399,7 +399,7 @@
     `).join('');
 
     el.view.innerHTML = `
-      ${renderHeader('RunRank', 'iPod UI')}
+      ${renderHeader('RS music app', 'iPod UI')}
       <div class="list">${items}</div>
       <div class="kbd">조작: <code>휠</code> 이동 · <code>OK</code> 선택 · <code>CHECK</code> 곡 체크</div>
     `;
@@ -711,7 +711,7 @@
   }
 
   async function shareRunText(text) {
-    const payload = { title: 'RunRank 기록', text: text };
+    const payload = { title: 'RS music app 기록', text: text };
     if (navigator.share) {
       try { await navigator.share(payload); return; } catch (_) {}
     }
@@ -734,7 +734,7 @@
     const photo = r.photo_url;
 
     const text =
-      `🏃 RunRank 기록\n` +
+      `🏃 RS music app 기록\n` +
       `날짜: ${date}\n` +
       `거리: ${dist}km\n` +
       `시간: ${dur}\n` +
