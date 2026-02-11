@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ko">
 <head>
@@ -723,6 +724,43 @@
     }
   }
 
+  async function shareRunImage(run, aspect = 'story') {
+    if (!run?.id) return;
+    const url = `/api/runs/${encodeURIComponent(run.id)}/share.png?aspect=${encodeURIComponent(aspect)}&_=${Date.now()}`;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const blob = await res.blob();
+      if (!res.ok || !blob || blob.size < 1000) throw new Error('이미지 생성 실패');
+
+      const file = new File([blob], `run_${run.id}.png`, { type: 'image/png' });
+
+      // Web Share (files) 지원 시: 카톡/인스타로 바로 공유 가능
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        try {
+          await navigator.share({
+            title: 'RS music app 기록',
+            text: '🏃 Run 기록',
+            files: [file],
+          });
+          return;
+        } catch (_) {}
+      }
+
+      // Fallback: 다운로드/미리보기
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = `run_${run.id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 8000);
+      showToast('공유', '이미지 다운로드됨 (갤러리/파일에서 공유)');
+    } catch (e) {
+      showToast('공유 실패', String(e?.message || e).slice(0, 80));
+    }
+  }
+
   function renderRunDetail() {
     const r = state.selectedRun;
     if (!r) { state.page='runs'; return renderRuns(); }
@@ -759,18 +797,20 @@
 
         <div class="cta" style="margin-top:10px;">
           <button class="btn" id="runBackBtn">목록</button>
-          <button class="btn primary" id="runShareBtn">공유</button>
+          <button class="btn primary" id="runShareImgBtn">이미지 공유</button>
+          <button class="btn" id="runShareTxtBtn">텍스트</button>
         </div>
 
         <div style="font-size:11px; color:var(--muted); line-height:1.45;">
-          * 메신저용 텍스트 공유만 지원 (SNS 전용 공유 제외)
+          * 이미지 공유는 <b>카톡/인스타</b>에서 바로 보이게 나온다. (지원 안 되면 자동으로 이미지 다운로드)
         </div>
       </div>
-      <div class="kbd"><code>OK</code> 공유 · <code>MENU</code> 홈</div>
+      <div class="kbd"><code>OK</code> 이미지 공유 · <code>MENU</code> 홈</div>
     `;
 
     document.getElementById('runBackBtn').addEventListener('click', ()=>{ state.page='runs'; render(); });
-    document.getElementById('runShareBtn').addEventListener('click', async ()=>{ await shareRunText(text); });
+    document.getElementById('runShareImgBtn').addEventListener('click', async ()=>{ await shareRunImage(r, 'story'); });
+    document.getElementById('runShareTxtBtn').addEventListener('click', async ()=>{ await shareRunText(text); });
   }
 
   // ===== 네비게이션/입력 =====
@@ -802,7 +842,8 @@
 
     // Run 상세: 공유
     if (state.page === 'run_detail') {
-      if (state._shareRunText) shareRunText(state._shareRunText);
+      // OK는 이미지 공유 우선
+      if (state.selectedRun) shareRunImage(state.selectedRun, 'story');
       return;
     }
 
