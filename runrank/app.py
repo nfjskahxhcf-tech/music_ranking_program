@@ -52,6 +52,46 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # ----------------------
 # Helpers
 # ----------------------
+
+def fetch_run_by_id(run_id: int) -> Optional[Dict[str, Any]]:
+    conn = db()
+    cur = conn.cursor()
+
+    if is_postgres():
+        cur.execute(f"SELECT * FROM runs WHERE id={ph()}", (run_id,))
+    else:
+        cur.execute("SELECT * FROM runs WHERE id=?", (run_id,))
+
+    r = cur.fetchone()
+    if not r:
+        conn.close()
+        return None
+
+    if is_postgres():
+        cur.execute(f"SELECT track_id FROM run_tracks WHERE run_id={ph()} ORDER BY track_id", (run_id,))
+    else:
+        cur.execute("SELECT track_id FROM run_tracks WHERE run_id=? ORDER BY track_id", (run_id,))
+    rows = cur.fetchall()
+    track_ids = [int(x["track_id"]) for x in rows] if rows else []
+
+    conn.close()
+    user_val = r["user_name"] if is_postgres() else r["user"]
+
+    return {
+        "id": int(r["id"]),
+        "user": str(user_val),
+        "ts_epoch": int(r["ts_epoch"]),
+        "day_kst": str(r["day_kst"]),
+        "date_label": str(r["date_label"]),
+        "distance_km": float(r["distance_km"]),
+        "duration_sec": int(r["duration_sec"]),
+        "track_id": (int(r["track_id"]) if r["track_id"] is not None else None),
+        "photo_url": (str(r["photo_url"]) if r["photo_url"] else None),
+        "track_ids": track_ids,
+    }
+
+
+
 def is_postgres() -> bool:
     return bool(DATABASE_URL)
 
@@ -438,6 +478,89 @@ def itunes_search_cover(title: str, artist: str) -> Optional[str]:
         return str(cover) if cover else None
     except Exception:
         return None
+
+def _fmt_time(total_sec: int) -> str:
+    total_sec = int(total_sec or 0)
+    h = total_sec // 3600
+    m = (total_sec % 3600) // 60
+    s = total_sec % 60
+    return f"{h}:{m:02d}:{s:02d}" if h > 0 else f"{m:02d}:{s:02d}"
+
+def _safe_font(size: int):
+    try:
+        return ImageFont.truetype("DejaVuSans.ttf", size)
+    except Exception:
+        return ImageFont.load_default()
+
+def _photo_url_to_path(photo_url: Optional[str]) -> Optional[Path]:
+    if not photo_url:
+        return None
+    if isinstance(photo_url, str) and photo_url.startswith("/static/"):
+        rel = photo_url[len("/static/"):]
+        p = STATIC_DIR / rel
+        return p if p.exists() else None
+    return None
+
+@app.get("/api/runs/{run_id}/share.png", include_in_schema=False)
+def share_run_png(run_id: int, aspect: str = "story"):
+    run = fetch_run_by_id(run_id)
+    if not run:
+        return Response(status_code=404, content=b"run not found")
+
+    dist_km = float(run.get("distance_km") or 0)
+    dur_sec = int(run.get("duration_sec") or 0)
+    date_label = str(run.get("date_label") or run.get("day_kst") or "")
+    user = str(run.get("user") or "")
+    pace_str = calc_pace_str(dist_km, dur_sec)
+
+    # aspect 지원: story(9:16) / square(1:1)
+    if (aspect or "").lower() == "square":
+        W, H = 1080, 1080
+    else:
+        W, H = 1080, 1920
+
+    bg = Image.new("RGB", (W, H), (12, 12, 12))
+
+    photo_path = _photo_url_to_path(run.get("photo_url"))
+    if photo_path:
+        try:
+            img = Image.open(photo_path).convert("RGB")
+            iw, ih = img.size
+            scale = max(W / iw, H / ih)
+            nw, nh = int(iw * scale), int(ih * scale)
+            img = img.resize((nw, nh))
+            left = (nw - W) // 2
+            top = (nh - H) // 2
+            img = img.crop((left, top, left + W, top + H))
+            bg = img
+        except Exception:
+            pass
+
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 80))
+    bg = Image.alpha_composite(bg.convert("RGBA"), overlay).convert("RGB")
+    draw = ImageDraw.Draw(bg)
+
+    f_big = _safe_font(150 if H == 1080 else 170)
+    f_mid = _safe_font(56)
+    f_small = _safe_font(42)
+
+    dist_text = f"{dist_km:.2f} km" if dist_km > 0 else "--.-- km"
+    draw.text((70, 190 if H == 1080 else 220), dist_text, font=f_big, fill=(255, 255, 255))
+
+    y = 420 if H == 1080 else 480
+    draw.text((70, y), f"TIME  {_fmt_time(dur_sec)}", font=f_mid, fill=(255, 255, 255))
+    draw.text((70, y + 80), f"PACE  {pace_str}", font=f_mid, fill=(255, 255, 255))
+
+    if date_label:
+        draw.text((70, y + 190), date_label[:32], font=f_small, fill=(230, 230, 230))
+    if user:
+        draw.text((70, y + 250), user[:24], font=f_small, fill=(200, 200, 200))
+
+    draw.text((70, H - 90), "RunRank", font=_safe_font(40), fill=(210, 210, 210))
+
+    buf = BytesIO()
+    bg.save(buf, format="PNG", optimize=True)
+    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 # ----------------------
