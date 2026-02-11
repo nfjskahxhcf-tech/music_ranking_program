@@ -478,11 +478,17 @@
     state.listIndex = clampIndex(state.listIndex, runs.length);
 
     const items = runs.map((r, idx) => {
-      const cover = r.photo_url ? r.photo_url : '';
+          const photo = r.photo_url;
+      const bust = r.ts_epoch || r.id || Date.now();
+      const thumbHtml = photo
+        ? `<img src="${escapeAttr(photo)}?v=${bust}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:12px;display:block;" />`
+        : `<div style="width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);">🏃</div>`;
+
+      
       const sub = `${r.date_label} · ${r.distance_km}km · ${fmtDur(r.duration_sec)} · ${r.pace}`;
       return `
         <div class="item ${idx === state.listIndex ? 'active' : ''}">
-          <div class="thumb">${cover ? `<img alt="" src="${cover}" onerror="this.remove()">` : '🏃'}</div>
+          <div class="thumb">${thumbHtml}</div>
           <div class="meta"><div class="name">${escapeHtml(r.date_label || 'Run')}</div><div class="sub">${escapeHtml(sub)}</div></div>
           <div class="right">›</div>
         </div>
@@ -599,16 +605,31 @@
   }
 
   // ===== Runs 작성/공유 =====
-  function parseMmSs(s) {
-    const t = String(s || '').trim();
-    if (!t) return null;
-    const m = t.match(/^(\d+)\s*:\s*(\d{1,2})$/);
-    if (!m) return null;
-    const mm = parseInt(m[1], 10);
-    const ss = parseInt(m[2], 10);
-    if (!Number.isFinite(mm) || !Number.isFinite(ss) || ss >= 60) return null;
-    return mm * 60 + ss;
+   function parseHMS(s) {
+    s = String(s || '').trim();
+    if (!s) return NaN;
+
+    const parts = s.split(':').map(x => x.trim());
+    if (parts.some(p => p === '' || isNaN(Number(p)))) return NaN;
+
+    if (parts.length === 2) {
+      const mm = Number(parts[0]);
+      const ss = Number(parts[1]);
+      if (mm < 0 || ss < 0 || ss >= 60) return NaN;
+      return Math.round(mm * 60 + ss);
+    }
+
+    if (parts.length === 3) {
+      const hh = Number(parts[0]);
+      const mm = Number(parts[1]);
+      const ss = Number(parts[2]);
+      if (hh < 0 || mm < 0 || ss < 0 || mm >= 60 || ss >= 60) return NaN;
+      return Math.round(hh * 3600 + mm * 60 + ss);
+    }
+
+    return NaN;
   }
+
 
   function renderRunCreate() {
     const nick = getNick().trim();
@@ -640,7 +661,8 @@
 
         <!-- ✅ 3번: ':' 입력 가능하도록 type=text + inputmode 제거 -->
         <div style="display:flex; gap:8px; align-items:center;">
-          <input id="runDur" type="text" placeholder="시간(mm:ss) 예) 24:30" style="flex:1;" />
+          <input id="runDur" type="text" placeholder="시간(hh:mm:ss 또는 mm:ss) 예) 01:24:30" style="flex:1;" />
+
         </div>
 
         <div style="display:flex; gap:8px; align-items:center;">
@@ -669,12 +691,13 @@
 
     const date_label = document.getElementById('runDate')?.value?.trim() || '';
     const distance_km = parseFloat(document.getElementById('runDist')?.value || '');
-    const duration_sec = parseMmSs(document.getElementById('runDur')?.value || '');
+    const duration_sec = parseHMS(document.getElementById('runDur')?.value || '');
     const photo = document.getElementById('runPhoto')?.files?.[0] || null;
 
     if (!date_label) { showToast('Runs', '날짜를 입력해'); return; }
     if (!Number.isFinite(distance_km) || distance_km <= 0) { showToast('Runs', '거리(km)를 제대로 입력해'); return; }
-    if (!Number.isFinite(duration_sec) || duration_sec <= 0) { showToast('Runs', '시간(mm:ss)을 제대로 입력해'); return; }
+    if (!Number.isFinite(duration_sec) || duration_sec <= 0) { showToast('Runs', '시간을 hh:mm:ss 또는 mm:ss로 입력해'); return; }
+
 
     const fd = new FormData();
     fd.append('user', nick);
