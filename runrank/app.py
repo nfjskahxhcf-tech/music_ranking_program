@@ -1,3 +1,4 @@
+from io import BytesIO
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
