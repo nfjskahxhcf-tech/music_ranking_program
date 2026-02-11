@@ -1,4 +1,3 @@
-from io import BytesIO
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -560,7 +559,7 @@ def share_run_png(run_id: int, aspect: str = "story"):
 
     draw.text((70, H - 90), "RunRank", font=_safe_font(40), fill=(210, 210, 210))
 
-    buf = BytesIO()
+    buf = io.BytesIO()
     bg.save(buf, format="PNG", optimize=True)
     return Response(content=buf.getvalue(), media_type="image/png")
 
