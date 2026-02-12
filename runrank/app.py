@@ -350,8 +350,6 @@ def _render_run_share_image(
             music = music[:57] + "…"
         d.text((pad, meta_y + 52), music, font=f_tiny, fill=accent)
 
-    # Footer
-    d.text((pad, H - 92), "Share to Instagram / Kakao", font=f_tiny, fill=(255, 255, 255, 170))
 
     out = io.BytesIO()
     canvas.convert("RGB").save(out, format="PNG", optimize=True)
