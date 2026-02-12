@@ -1,11 +1,10 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import Response, FileResponse
+from fastapi import FastAPI, UploadFile, File, Form, Response
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, Dict, List, Any, Tuple
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from PIL import Image, ImageDraw, ImageFont
 import json
 import math
 import os
@@ -15,6 +14,19 @@ import urllib.parse
 import urllib.request
 import csv 
 import io
+import shutil
+
+try:
+    from PIL import Image, ImageOps
+except Exception:
+    Image = None
+    ImageOps = None
+
+# Share image (Pillow)
+try:
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter
+except Exception:
+    Image = ImageDraw = ImageFont = ImageFilter = None
 
 # ----------------------
 # DB setup (Postgres if DATABASE_URL is set, else SQLite fallback)
@@ -53,68 +65,6 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # ----------------------
 # Helpers
 # ----------------------
-
-def fetch_run_by_id(run_id: int) -> Optional[Dict[str, Any]]:
-    conn = db()
-    cur = conn.cursor()
-
-    if is_postgres():
-        cur.execute(f"SELECT * FROM runs WHERE id={ph()}", (run_id,))
-    else:
-        cur.execute("SELECT * FROM runs WHERE id=?", (run_id,))
-
-    r = cur.fetchone()
-    if not r:
-        conn.close()
-        return None
-
-    if is_postgres():
-        cur.execute(f"SELECT track_id FROM run_tracks WHERE run_id={ph()} ORDER BY track_id", (run_id,))
-    else:
-        cur.execute("SELECT track_id FROM run_tracks WHERE run_id=? ORDER BY track_id", (run_id,))
-    rows = cur.fetchall()
-    track_ids = [int(x["track_id"]) for x in rows] if rows else []
-
-    conn.close()
-    user_val = r["user_name"] if is_postgres() else r["user"]
-
-    return {
-        "id": int(r["id"]),
-        "user": str(user_val),
-        "ts_epoch": int(r["ts_epoch"]),
-        "day_kst": str(r["day_kst"]),
-        "date_label": str(r["date_label"]),
-        "distance_km": float(r["distance_km"]),
-        "duration_sec": int(r["duration_sec"]),
-        "track_id": (int(r["track_id"]) if r["track_id"] is not None else None),
-        "photo_url": (str(r["photo_url"]) if r["photo_url"] else None),
-        "track_ids": track_ids,
-    }
-
-# ----------------------
-# Image helpers (memory safe)
-# ----------------------
-MAX_UPLOAD_SIDE = 1600          # 1200~2000 추천 (메모리 안정 + 화질 타협)
-UPLOAD_JPEG_QUALITY = 82        # 75~88 추천
-
-def compress_image_bytes(data: bytes) -> bytes:
-    """
-    Downscale & recompress uploaded photos to avoid Render memory spikes.
-    - Converts to RGB
-    - Downscales so max(width,height) <= MAX_UPLOAD_SIDE
-    - Saves as JPEG (quality=UPLOAD_JPEG_QUALITY)
-    """
-    with Image.open(io.BytesIO(data)) as im:
-        im = im.convert("RGB")
-        w, h = im.size
-        scale = min(1.0, MAX_UPLOAD_SIDE / max(w, h))
-        if scale < 1.0:
-            im = im.resize((int(w * scale), int(h * scale)))
-
-        out = io.BytesIO()
-        im.save(out, format="JPEG", quality=UPLOAD_JPEG_QUALITY, optimize=True)
-        return out.getvalue()
-
 def is_postgres() -> bool:
     return bool(DATABASE_URL)
 
@@ -179,6 +129,233 @@ def calc_pace_str(distance_km: float, duration_sec: int) -> str:
         m += 1
         s = 0
     return f"{m}:{str(s).zfill(2)}/km"
+
+
+def fmt_duration_hms(sec: int) -> str:
+    sec = max(0, int(sec or 0))
+    h = sec // 3600
+    m = (sec % 3600) // 60
+    s = sec % 60
+    if h > 0:
+        return f"{h}:{str(m).zfill(2)}:{str(s).zfill(2)}"
+    return f"{m}:{str(s).zfill(2)}"
+
+
+def _font(path: str, size: int, index: int = 0):
+    if ImageFont is None:
+        return None
+    try:
+        return ImageFont.truetype(path, size=size, index=index)
+    except Exception:
+        try:
+            return ImageFont.truetype(path, size=size)
+        except Exception:
+            return ImageFont.load_default()
+
+
+def _safe_open_local_image(path: Path) -> "Image.Image":
+    """Open image and handle common edge cases. Returns PIL Image."""
+    img = Image.open(str(path))
+    # Some uploads may include EXIF orientation
+    try:
+        from PIL import ImageOps
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+    return img
+
+
+def _cover_resize(img: "Image.Image", w: int, h: int) -> "Image.Image":
+    """Resize by covering the given box (center crop)."""
+    iw, ih = img.size
+    if iw <= 0 or ih <= 0:
+        return Image.new("RGB", (w, h), (15, 18, 25))
+    scale = max(w / iw, h / ih)
+    nw, nh = int(iw * scale), int(ih * scale)
+    img2 = img.resize((nw, nh), Image.LANCZOS)
+    left = max(0, (nw - w) // 2)
+    top = max(0, (nh - h) // 2)
+    return img2.crop((left, top, left + w, top + h))
+
+
+def _hex_color_from_int(x: int) -> Tuple[int, int, int]:
+    # deterministic pleasant-ish color
+    x = int(x) & 0xFFFFFFFF
+    r = 40 + (x & 0x7F)
+    g = 50 + ((x >> 8) & 0x7F)
+    b = 70 + ((x >> 16) & 0x7F)
+    return (r, g, b)
+
+
+def _render_run_share_image(
+    *,
+    run: Dict[str, Any],
+    tracks: List[Dict[str, Any]],
+    aspect: str = "story",
+    theme: str = "dark",
+) -> bytes:
+    """Return PNG bytes for a share image (Instagram/Kakao)."""
+    if Image is None:
+        raise RuntimeError("Pillow is required for share image generation.")
+
+    aspect = (aspect or "story").lower().strip()
+    if aspect == "feed":
+        W, H = 1080, 1350
+    elif aspect == "square":
+        W, H = 1080, 1080
+    else:
+        W, H = 1080, 1920
+
+    # --- Background
+    bg = None
+    photo_url = run.get("photo_url")
+    if photo_url:
+        # Only allow local uploads
+        try:
+            if str(photo_url).startswith("/static/uploads/"):
+                p = UPLOAD_DIR / Path(str(photo_url)).name
+                if p.exists():
+                    im = _safe_open_local_image(p)
+                    bg = _cover_resize(im, W, H)
+        except Exception:
+            bg = None
+
+    if bg is None:
+        c = _hex_color_from_int(int(run.get("id", 0)) * 2654435761)
+        bg = Image.new("RGB", (W, H), c)
+
+    # Blur a copy for readability, keep a subtle texture
+    try:
+        bg_blur = bg.filter(ImageFilter.GaussianBlur(radius=14))
+        bg = Image.blend(bg_blur, bg, 0.35)
+    except Exception:
+        pass
+
+    # Dark overlay
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    if theme == "light":
+        od.rectangle([0, 0, W, H], fill=(255, 255, 255, 60))
+    else:
+        od.rectangle([0, 0, W, H], fill=(0, 0, 0, 90))
+
+    # Bottom gradient for text
+    grad = Image.new("L", (1, H))
+    for y in range(H):
+        # stronger at bottom
+        a = int(255 * min(1.0, max(0.0, (y - H * 0.45) / (H * 0.55))))
+        grad.putpixel((0, y), a)
+    grad = grad.resize((W, H))
+    grad_rgba = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    grad_rgba.putalpha(grad)
+    overlay = Image.alpha_composite(overlay, grad_rgba)
+
+    canvas = bg.convert("RGBA")
+    canvas = Image.alpha_composite(canvas, overlay)
+
+    d = ImageDraw.Draw(canvas)
+
+        # --- Fonts (Korean-safe)
+    # NOTE: keep these inside the share-image render function (same indentation)
+    from pathlib import Path
+
+    base_dir = Path(__file__).resolve().parent
+    local_font_reg = base_dir / "assets" / "fonts" / "NotoSansKR-Regular.ttf"
+
+    def _pick_font_path(candidates):
+        for p in candidates:
+            try:
+                if p and Path(p).exists():
+                    return str(p)
+            except Exception:
+                pass
+        return None
+
+    font_reg_path = _pick_font_path([
+        str(local_font_reg),  # 1st priority: repo font
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    ])
+
+    font_bold_path = _pick_font_path([
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        str(local_font_reg),  # fallback
+    ])
+
+    f_brand = _font(font_bold_path, 44)
+    f_big = _font(font_bold_path, 120)
+    f_mid = _font(font_bold_path, 60)
+    f_label = _font(font_reg_path, 34)
+    f_small = _font(font_reg_path, 30)
+    f_tiny = _font(font_reg_path, 26)
+
+    # --- Content
+    date_label = str(run.get("date_label") or "")
+    distance_km = float(run.get("distance_km") or 0.0)
+    duration_sec = int(run.get("duration_sec") or 0)
+    pace = calc_pace_str(distance_km, duration_sec)
+    duration = fmt_duration_hms(duration_sec)
+    user = str(run.get("user") or "")
+
+    # colors
+    white = (245, 248, 255, 255)
+    muted = (190, 205, 235, 220)
+    accent = (123, 220, 255, 255)
+
+    pad = 72
+    top_y = 72
+
+    # Brand
+    d.text((pad, top_y), "RS music app", font=f_brand, fill=white)
+    d.text((pad, top_y + 54), "RUN", font=f_label, fill=muted)
+
+    # Big distance
+    dist_str = f"{distance_km:.2f}".rstrip("0").rstrip(".")
+    d.text((pad, top_y + 130), dist_str, font=f_big, fill=white)
+    d.text((pad + 10 + int(d.textlength(dist_str, font=f_big)), top_y + 200), "km", font=f_mid, fill=muted)
+
+    # Stats block
+    block_y = H - 420 if H >= 1350 else H - 360
+    if H == 1080:
+        block_y = H - 330
+    if H == 1350:
+        block_y = H - 360
+
+    # Left column: time
+    d.text((pad, block_y), "TIME", font=f_tiny, fill=muted)
+    d.text((pad, block_y + 48), duration, font=f_mid, fill=white)
+
+    # Right column: pace
+    col2_x = W // 2 + 30
+    d.text((col2_x, block_y), "PACE", font=f_tiny, fill=muted)
+    d.text((col2_x, block_y + 48), pace, font=f_mid, fill=white)
+
+    # Date/user line
+    meta_y = block_y + 150
+    meta = date_label.strip()
+    if user:
+        meta = f"{meta} · {user}" if meta else user
+    if meta:
+        d.text((pad, meta_y), meta, font=f_small, fill=muted)
+
+    # Music line (first track)
+    if tracks:
+        t0 = tracks[0]
+        music = f"🎵 {t0.get('title','').strip()} — {t0.get('artist','').strip()}".strip()
+        # clamp length by rough chars
+        if len(music) > 60:
+            music = music[:57] + "…"
+        d.text((pad, meta_y + 52), music, font=f_tiny, fill=accent)
+
+    # Footer
+    d.text((pad, H - 92), "Share to Instagram / Kakao", font=f_tiny, fill=(255, 255, 255, 170))
+
+    out = io.BytesIO()
+    canvas.convert("RGB").save(out, format="PNG", optimize=True)
+    return out.getvalue()
 
 
 # ----------------------
@@ -501,89 +678,6 @@ def itunes_search_cover(title: str, artist: str) -> Optional[str]:
         return str(cover) if cover else None
     except Exception:
         return None
-
-def _fmt_time(total_sec: int) -> str:
-    total_sec = int(total_sec or 0)
-    h = total_sec // 3600
-    m = (total_sec % 3600) // 60
-    s = total_sec % 60
-    return f"{h}:{m:02d}:{s:02d}" if h > 0 else f"{m:02d}:{s:02d}"
-
-def _safe_font(size: int):
-    try:
-        return ImageFont.truetype("DejaVuSans.ttf", size)
-    except Exception:
-        return ImageFont.load_default()
-
-def _photo_url_to_path(photo_url: Optional[str]) -> Optional[Path]:
-    if not photo_url:
-        return None
-    if isinstance(photo_url, str) and photo_url.startswith("/static/"):
-        rel = photo_url[len("/static/"):]
-        p = STATIC_DIR / rel
-        return p if p.exists() else None
-    return None
-
-@app.get("/api/runs/{run_id}/share.png", include_in_schema=False)
-def share_run_png(run_id: int, aspect: str = "story"):
-    run = fetch_run_by_id(run_id)
-    if not run:
-        return Response(status_code=404, content=b"run not found")
-
-    dist_km = float(run.get("distance_km") or 0)
-    dur_sec = int(run.get("duration_sec") or 0)
-    date_label = str(run.get("date_label") or run.get("day_kst") or "")
-    user = str(run.get("user") or "")
-    pace_str = calc_pace_str(dist_km, dur_sec)
-
-    # aspect 지원: story(9:16) / square(1:1)
-    if (aspect or "").lower() == "square":
-        W, H = 1080, 1080
-    else:
-        W, H = 1080, 1920
-
-    bg = Image.new("RGB", (W, H), (12, 12, 12))
-
-    photo_path = _photo_url_to_path(run.get("photo_url"))
-    if photo_path:
-        try:
-            img = Image.open(photo_path).convert("RGB")
-            iw, ih = img.size
-            scale = max(W / iw, H / ih)
-            nw, nh = int(iw * scale), int(ih * scale)
-            img = img.resize((nw, nh))
-            left = (nw - W) // 2
-            top = (nh - H) // 2
-            img = img.crop((left, top, left + W, top + H))
-            bg = img
-        except Exception:
-            pass
-
-    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 80))
-    bg = Image.alpha_composite(bg.convert("RGBA"), overlay).convert("RGB")
-    draw = ImageDraw.Draw(bg)
-
-    f_big = _safe_font(150 if H == 1080 else 170)
-    f_mid = _safe_font(56)
-    f_small = _safe_font(42)
-
-    dist_text = f"{dist_km:.2f} km" if dist_km > 0 else "--.-- km"
-    draw.text((70, 190 if H == 1080 else 220), dist_text, font=f_big, fill=(255, 255, 255))
-
-    y = 420 if H == 1080 else 480
-    draw.text((70, y), f"TIME  {_fmt_time(dur_sec)}", font=f_mid, fill=(255, 255, 255))
-    draw.text((70, y + 80), f"PACE  {pace_str}", font=f_mid, fill=(255, 255, 255))
-
-    if date_label:
-        draw.text((70, y + 190), date_label[:32], font=f_small, fill=(230, 230, 230))
-    if user:
-        draw.text((70, y + 250), user[:24], font=f_small, fill=(200, 200, 200))
-
-    draw.text((70, H - 90), "RunRank", font=_safe_font(40), fill=(210, 210, 210))
-
-    buf = io.BytesIO()
-    bg.save(buf, format="PNG", optimize=True)
-    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 # ----------------------
@@ -940,6 +1034,46 @@ def hot_ranking(tau_hours: float = 24.0):
 # ----------------------
 # Runs API (photo upload)
 # ----------------------
+
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB
+MAX_SIDE = 1600
+
+def _save_upload_stream_to_temp(upload: UploadFile, tmp_path: Path) -> int:
+    total = 0
+    with open(tmp_path, "wb") as f:
+        while True:
+            chunk = upload.file.read(1024 * 1024)  # 1MB
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > MAX_UPLOAD_BYTES:
+                raise ValueError("too_large")
+            f.write(chunk)
+    return total
+
+def _process_image_to_jpeg(src_path: Path, dst_path: Path) -> None:
+    if Image is None:
+        shutil.copyfile(src_path, dst_path)
+        return
+
+    img = Image.open(src_path)
+    try:
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass
+
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+
+    w, h = img.size
+    m = max(w, h)
+    if m > MAX_SIDE:
+        scale = MAX_SIDE / float(m)
+        new_size = (max(1, int(w * scale)), max(1, int(h * scale)))
+        img = img.resize(new_size)
+
+    img.save(dst_path, format="JPEG", quality=85, optimize=True, progressive=True)
+
 @app.post("/api/runs")
 async def create_run(
     user: str = Form(...),
@@ -983,24 +1117,30 @@ async def create_run(
     day_kst = kst_day_str_from_epoch(ts_epoch)
 
     photo_url = None
-    if photo and photo.filename:
-        raw = await photo.read()
+    if photo is not None:
+        # 최종 저장은 jpg로 고정 (리사이즈/압축 때문)
+        fname = f"run_{ts_epoch}_{uuid.uuid4().hex[:8]}.jpg"
+        out_path = UPLOAD_DIR / fname
 
-        # 🔥 메모리 안정화: 업로드 즉시 다운스케일/재압축
+        tmp_path = UPLOAD_DIR / f"._tmp_{ts_epoch}_{uuid.uuid4().hex[:8]}"
         try:
-            raw = compress_image_bytes(raw)
-            ext = "jpg"
-        except Exception:
-            # 이미지가 아니거나 압축 실패하면 원본 저장(최후 fallback)
-            ext = (Path(photo.filename).suffix.lstrip(".").lower() or "jpg")[:5]
+            # 1) 스트리밍 저장 (메모리 폭발 방지)
+            _save_upload_stream_to_temp(photo, tmp_path)
 
-        fname = f"run_{ts_epoch}_{uuid.uuid4().hex[:8]}.{ext}"
-        save_path = UPLOAD_DIR / fname
+            # 2) EXIF/리사이즈/재압축 후 저장
+            _process_image_to_jpeg(tmp_path, out_path)
 
-        with open(save_path, "wb") as f:
-            f.write(raw)
-
-        photo_url = f"/static/uploads/{fname}"
+            photo_url = f"/static/uploads/{fname}"
+        except ValueError as e:
+            if str(e) == "too_large":
+                return {"ok": False, "error": "사진 파일이 너무 큽니다. (최대 8MB) 줄여서 올려줘."}
+            raise
+        finally:
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except Exception:
+                pass
 
     conn = db()
     cur = conn.cursor()
@@ -1120,3 +1260,65 @@ def list_runs(user: Optional[str] = None, limit: int = 30):
             "photo_url": r["photo_url"]
         })
     return out
+
+
+def _get_run_with_tracks(run_id: int) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Fetch a run row + its tracks (first is most recent selected)."""
+    conn = db()
+    cur = conn.cursor()
+
+    if is_postgres():
+        cur.execute(f"SELECT * FROM runs WHERE id={ph()} LIMIT 1", (int(run_id),))
+    else:
+        cur.execute("SELECT * FROM runs WHERE id=? LIMIT 1", (int(run_id),))
+    r = cur.fetchone()
+    if not r:
+        conn.close()
+        return None, []
+
+    # tracks for this run
+    cur.execute(
+        f"SELECT track_id FROM run_tracks WHERE run_id={ph()} ORDER BY track_id",
+        (int(run_id),),
+    )
+    tids = [int(x[0] if isinstance(x, tuple) else x["track_id"]) for x in cur.fetchall()]
+    conn.close()
+
+    run = {
+        "id": int(r["id"]),
+        "user": (r["user_name"] if is_postgres() else r["user"]),
+        "date_label": r["date_label"],
+        "distance_km": float(r["distance_km"]),
+        "duration_sec": int(r["duration_sec"]),
+        "photo_url": r["photo_url"],
+    }
+
+    tracks: List[Dict[str, Any]] = []
+    for tid in tids:
+        t = TRACK_BY_ID.get(int(tid))
+        if t:
+            tracks.append({
+                "id": t["id"],
+                "title": t.get("title"),
+                "artist": t.get("artist"),
+                "cover_url": (t.get("cover_url") or get_cover_from_cache(t["id"])),
+            })
+
+    return run, tracks
+
+
+@app.get("/api/runs/{run_id}/share.png", include_in_schema=False)
+def run_share_image(run_id: int, aspect: str = "story"):
+    """Generate a shareable image with the run photo + stats (NRC-ish)."""
+    run, tracks = _get_run_with_tracks(int(run_id))
+    if not run:
+        return Response(status_code=404)
+    try:
+        png = _render_run_share_image(run=run, tracks=tracks, aspect=aspect)
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store, max-age=0"},
+    )
