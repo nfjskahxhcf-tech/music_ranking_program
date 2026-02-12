@@ -91,7 +91,29 @@ def fetch_run_by_id(run_id: int) -> Optional[Dict[str, Any]]:
         "track_ids": track_ids,
     }
 
+# ----------------------
+# Image helpers (memory safe)
+# ----------------------
+MAX_UPLOAD_SIDE = 1600          # 1200~2000 추천 (메모리 안정 + 화질 타협)
+UPLOAD_JPEG_QUALITY = 82        # 75~88 추천
 
+def compress_image_bytes(data: bytes) -> bytes:
+    """
+    Downscale & recompress uploaded photos to avoid Render memory spikes.
+    - Converts to RGB
+    - Downscales so max(width,height) <= MAX_UPLOAD_SIDE
+    - Saves as JPEG (quality=UPLOAD_JPEG_QUALITY)
+    """
+    with Image.open(io.BytesIO(data)) as im:
+        im = im.convert("RGB")
+        w, h = im.size
+        scale = min(1.0, MAX_UPLOAD_SIDE / max(w, h))
+        if scale < 1.0:
+            im = im.resize((int(w * scale), int(h * scale)))
+
+        out = io.BytesIO()
+        im.save(out, format="JPEG", quality=UPLOAD_JPEG_QUALITY, optimize=True)
+        return out.getvalue()
 
 def is_postgres() -> bool:
     return bool(DATABASE_URL)
@@ -961,16 +983,23 @@ async def create_run(
     day_kst = kst_day_str_from_epoch(ts_epoch)
 
     photo_url = None
-    if photo is not None:
-        orig = sanitize_filename(photo.filename or "photo")
-        ext = Path(orig).suffix.lower()
-        if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic"]:
-            ext = ".jpg"
-        fname = f"run_{ts_epoch}_{uuid.uuid4().hex[:8]}{ext}"
-        out_path = UPLOAD_DIR / fname
-        content = await photo.read()
-        with open(out_path, "wb") as f:
-            f.write(content)
+    if photo and photo.filename:
+        raw = await photo.read()
+
+        # 🔥 메모리 안정화: 업로드 즉시 다운스케일/재압축
+        try:
+            raw = compress_image_bytes(raw)
+            ext = "jpg"
+        except Exception:
+            # 이미지가 아니거나 압축 실패하면 원본 저장(최후 fallback)
+            ext = (Path(photo.filename).suffix.lstrip(".").lower() or "jpg")[:5]
+
+        fname = f"run_{ts_epoch}_{uuid.uuid4().hex[:8]}.{ext}"
+        save_path = UPLOAD_DIR / fname
+
+        with open(save_path, "wb") as f:
+            f.write(raw)
+
         photo_url = f"/static/uploads/{fname}"
 
     conn = db()
