@@ -2,7 +2,7 @@
    - Cache the shell (index + manifest + icons)
    - Network-first for API (always try fresh)
 */
-const CACHE_NAME = "runrank-shell-v105";
+const CACHE_NAME = "runrank-shell-v106";
 
 const SHELL = [
   "/",                    // index.html (html=True라 /가 index 역할)
